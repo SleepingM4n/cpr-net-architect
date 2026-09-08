@@ -19,6 +19,8 @@ Interactive **Cyberpunk RED NET Architectures** for **Foundry VTT 12.343** and *
 
 Watch the supplied gameplay demonstration:
 
+https://github.com/user-attachments/assets/fb701afc-f862-4879-9e79-399366e65a26
+
 [NET Architect example video](https://github.com/SleepingM4n/cpr-net-architect/releases/download/v0.2.1/net-architect-demo.mp4)
 
 ## Install
