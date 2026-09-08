@@ -1,0 +1,27 @@
+{
+  "NETA": {
+    "title": "NET Architect",
+    "jackIn": "JACK IN",
+    "jackOut": "JACK OUT",
+    "settings": {
+      "defaultTheme": "Default visual theme",
+      "allowObservers": "Allow observers",
+      "promptObservers": "Automatically prompt observers",
+      "generatorOptions": "Default random generator options (JSON)",
+      "chatLevel": "NETRUN Chat Messages",
+      "openGM": "Auto-open NETRUN for GM",
+      "openRunner": "Auto-open NETRUN for Netrunner",
+      "confirmJackOut": "Require confirmation before Jack Out",
+      "storeLogs": "Store completed NETRUN logs",
+      "automation": "Control Node automation enabled",
+      "debug": "Debug logging",
+      "sounds": "Sounds enabled",
+      "animations": "Visual effects enabled",
+      "reducedMotion": "Reduced motion",
+      "intensity": "Animation intensity",
+      "uiScale": "NET UI scale",
+      "openObserver": "Auto-open spectator window",
+      "rememberPosition": "Remember NET window position"
+    }
+  }
+}

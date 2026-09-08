@@ -1,0 +1,190 @@
+{
+  "module": "cpr-net-architect",
+  "schemaVersion": 1,
+  "id": "kiroshi-warehouse-example",
+  "name": "Kiroshi Warehouse",
+  "theme": "red",
+  "entryNodeId": "access",
+  "nodes": [
+    {
+      "id": "access",
+      "type": "access",
+      "name": "Service Port",
+      "x": 50,
+      "y": 190,
+      "depth": null,
+      "icon": "◈",
+      "color": "",
+      "notes": "",
+      "gmNotes": "",
+      "attachments": [],
+      "controls": [],
+      "challenge": {
+        "enabled": false,
+        "action": "pathfinder",
+        "dv": 8,
+        "revealOnSuccess": true,
+        "allowRetry": true,
+        "blocksOnFailure": true,
+        "activateIceOnFailure": false,
+        "autoResolve": false,
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "password",
+      "type": "password",
+      "name": "Security Gate",
+      "x": 320,
+      "y": 190,
+      "depth": null,
+      "icon": "◈",
+      "color": "",
+      "notes": "",
+      "gmNotes": "",
+      "attachments": [],
+      "controls": [],
+      "challenge": {
+        "enabled": true,
+        "action": "backdoor",
+        "dv": 8,
+        "revealOnSuccess": true,
+        "allowRetry": true,
+        "blocksOnFailure": true,
+        "activateIceOnFailure": false,
+        "autoResolve": false,
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "blackice",
+      "type": "blackice",
+      "name": "ICE Countermeasure",
+      "x": 590,
+      "y": 80,
+      "depth": null,
+      "icon": "◈",
+      "color": "",
+      "notes": "",
+      "gmNotes": "Drag a native Black ICE Actor and its world Program Item here. The Program provides the native damage formula.",
+      "attachments": [],
+      "controls": [],
+      "challenge": {
+        "enabled": false,
+        "action": "pathfinder",
+        "dv": 8,
+        "revealOnSuccess": true,
+        "allowRetry": true,
+        "blocksOnFailure": true,
+        "activateIceOnFailure": false,
+        "autoResolve": false,
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "control",
+      "type": "control",
+      "name": "Lobby Security",
+      "x": 860,
+      "y": 80,
+      "depth": null,
+      "icon": "◈",
+      "color": "",
+      "notes": "",
+      "gmNotes": "Select the lobby door Wall on the physical Scene, then Add Control Action. Keep the Wall UUID in this world.",
+      "attachments": [],
+      "controls": [],
+      "challenge": {
+        "enabled": true,
+        "action": "control",
+        "dv": 10,
+        "revealOnSuccess": true,
+        "allowRetry": true,
+        "blocksOnFailure": true,
+        "activateIceOnFailure": false,
+        "autoResolve": false,
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "file",
+      "type": "file",
+      "name": "Shipping Manifest",
+      "x": 590,
+      "y": 320,
+      "depth": null,
+      "icon": "◈",
+      "color": "",
+      "notes": "",
+      "gmNotes": "Drag a JournalEntry here. Toggle Player-visible and give the runner/observers normal Foundry permission to read it.",
+      "attachments": [],
+      "controls": [],
+      "challenge": {
+        "enabled": true,
+        "action": "eyedee",
+        "dv": 6,
+        "revealOnSuccess": true,
+        "allowRetry": true,
+        "blocksOnFailure": true,
+        "activateIceOnFailure": false,
+        "autoResolve": false,
+        "requireApproval": false
+      }
+    },
+    {
+      "id": "objective",
+      "type": "objective",
+      "name": "Extract Shipment Data",
+      "x": 860,
+      "y": 320,
+      "depth": null,
+      "icon": "◈",
+      "color": "",
+      "notes": "Shipment records recovered. Return through the gateway or Jack Out.",
+      "gmNotes": "",
+      "attachments": [],
+      "controls": [],
+      "challenge": {
+        "enabled": false,
+        "action": "pathfinder",
+        "dv": 8,
+        "revealOnSuccess": true,
+        "allowRetry": true,
+        "blocksOnFailure": true,
+        "activateIceOnFailure": false,
+        "autoResolve": false,
+        "requireApproval": false
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "path-1",
+      "from": "access",
+      "to": "password"
+    },
+    {
+      "id": "path-2",
+      "from": "password",
+      "to": "blackice"
+    },
+    {
+      "id": "path-3",
+      "from": "blackice",
+      "to": "control"
+    },
+    {
+      "id": "path-4",
+      "from": "password",
+      "to": "file"
+    },
+    {
+      "id": "path-5",
+      "from": "file",
+      "to": "objective"
+    }
+  ],
+  "metadata": {},
+  "createdAt": "2026-09-07T15:42:30.566Z",
+  "modifiedAt": "2026-09-07T15:42:30.566Z"
+}
