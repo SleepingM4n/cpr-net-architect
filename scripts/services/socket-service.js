@@ -22,14 +22,26 @@ export class SocketService {
     this.keys = new Map();
   }
   async initialize(onRequest, onState) {
-    assert(globalThis.crypto?.subtle, "Secure synchronization requires HTTPS (or localhost).");
+    this.compatibility = game.settings?.get(ID, "httpCompatibility") === true;
+    assert(globalThis.crypto?.getRandomValues, "Secure random numbers are unavailable. Use a supported browser.");
+    assert(this.compatibility || globalThis.crypto?.subtle, "Secure synchronization requires HTTPS (or localhost). The GM can opt in to HTTP compatibility mode in Configure Settings → NET Architect, then everyone must reload.");
     this.onRequest = onRequest;
     this.onState = onState;
-    this.pair = await crypto.subtle.generateKey({
+    let publicKey;
+    if (this.compatibility) {
+      this.nacl = (await import("../vendor/tweetnacl.js")).default;
+      this.nacl.setPRNG((bytes, length) => {
+        for (let offset = 0; offset < length; offset += 65536) crypto.getRandomValues(bytes.subarray(offset, Math.min(length, offset + 65536)));
+      });
+      this.pair = this.nacl.box.keyPair();
+      publicKey = { protocol: "nacl-box-v1", publicKey: b64(this.pair.publicKey) };
+    } else {
+      this.pair = await crypto.subtle.generateKey({
       name: "ECDH",
       namedCurve: "P-256"
     }, false, ["deriveKey"]);
-    const publicKey = await crypto.subtle.exportKey("jwk", this.pair.publicKey);
+      publicKey = await crypto.subtle.exportKey("jwk", this.pair.publicKey);
+    }
     await game.user.setFlag(ID, "transportKey", publicKey);
     game.socket.on(`module.${ID}`, packet => this.receive(packet).catch(e => log.debug("Rejected packet", e.message)));
   }
@@ -39,6 +51,15 @@ export class SocketService {
     const fingerprint = JSON.stringify(jwk),
       cached = this.keys.get(userId);
     if (cached?.fingerprint === fingerprint) return cached.key;
+    if (this.compatibility) {
+      assert(jwk.protocol === "nacl-box-v1", "NET transport mode changed. Reload every GM and player client.");
+      const remote = un64(jwk.publicKey);
+      assert(remote.length === 32 && this.nacl.scalarMult(this.pair.secretKey, remote).some(v => v !== 0), "Invalid peer encryption key.");
+      const key = this.nacl.box.before(remote, this.pair.secretKey);
+      this.keys.set(userId, { fingerprint, key });
+      return key;
+    }
+    assert(jwk.kty === "EC" && !jwk.protocol, "NET transport mode changed. Reload every GM and player client.");
     const remote = await crypto.subtle.importKey("jwk", jwk, {
       name: "ECDH",
       namedCurve: "P-256"
@@ -63,12 +84,17 @@ export class SocketService {
         id: uid(),
         time: Date.now()
       },
-      iv = crypto.getRandomValues(new Uint8Array(12));
-    const ciphertext = await crypto.subtle.encrypt({
+      iv = crypto.getRandomValues(new Uint8Array(this.compatibility ? 24 : 12));
+    const key = await this.key(to);
+    // NaCl authenticates its plaintext. Include and verify the complete routing
+    // header inside the ciphertext to provide the same binding as AES-GCM AAD.
+    const ciphertext = this.compatibility
+      ? this.nacl.box.after(enc.encode(JSON.stringify({ header, body })), iv, key)
+      : await crypto.subtle.encrypt({
       name: "AES-GCM",
       iv,
       additionalData: enc.encode(JSON.stringify(header))
-    }, await this.key(to), enc.encode(JSON.stringify(body)));
+    }, key, enc.encode(JSON.stringify(body)));
     game.socket.emit(`module.${ID}`, {
       ...header,
       iv: b64(iv),
@@ -87,7 +113,15 @@ export class SocketService {
     assert(game.users.get(from)?.active, "Sender disconnected.");
     const keyId = `${from}:${id}`;
     assert(!this.seen.has(keyId), "Replay rejected.");
-    const plaintext = await crypto.subtle.decrypt({
+    const key = await this.key(from);
+    let plaintext;
+    if (this.compatibility) {
+      const opened = this.nacl.box.open.after(un64(packet.data), un64(packet.iv), key);
+      assert(opened, "Encrypted packet authentication failed.");
+      const payload = JSON.parse(dec.decode(opened));
+      assert(JSON.stringify(payload.header) === JSON.stringify({ from, to, id, time }), "Packet header authentication failed.");
+      plaintext = enc.encode(JSON.stringify(payload.body));
+    } else plaintext = await crypto.subtle.decrypt({
       name: "AES-GCM",
       iv: un64(packet.iv),
       additionalData: enc.encode(JSON.stringify({
@@ -96,7 +130,7 @@ export class SocketService {
         id,
         time
       }))
-    }, await this.key(from), un64(packet.data));
+    }, key, un64(packet.data));
     assert(!this.seen.has(keyId), "Replay rejected.");
     this.seen.set(keyId, time);
     for (const [k, t] of this.seen) if (Date.now() - t > 120000) this.seen.delete(k);

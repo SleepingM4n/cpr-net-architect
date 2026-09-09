@@ -103,7 +103,7 @@ Hooks.on("getSceneControlButtons", controls => {
     icon: "fas fa-network-wired",
     button: true,
     onClick: () => {
-      if (!runtime?.ready) return ui.notifications.warn("NET Architect is not ready. Check the system version and HTTPS connection.");
+      if (!runtime?.ready) return ui.notifications.warn("NET Architect is not ready. Check the startup error, supported system version, and HTTPS connection or GM HTTP compatibility setting. Reload all clients after changing transport mode.");
       Promise.resolve(game.user.isGM ? runtime.openManager() : runtime.rejoin()).catch(log.error);
     }
   });

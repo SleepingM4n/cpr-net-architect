@@ -10,7 +10,7 @@ An independent Foundry VTT module for interactive Cyberpunk RED NET Architecture
 2. In your host's file manager or supported custom-module uploader, place that folder under the server's **`Data/modules/`** directory. The final manifest path must be **`Data/modules/cpr-net-architect/module.json`**, without an extra nested folder. The host determines the absolute server path.
 3. Restart Foundry from the hosting dashboard if required for module discovery.
 4. Open a world using CPR v0.92.4. In **Game Settings → Manage Modules**, enable **NET Architect**, save, and reload all clients.
-5. Connect through **HTTPS**. WebCrypto is required for private synchronization; localhost also works for local development.
+5. Connect through **HTTPS** by default. HTTP is supported with the GM-enabled compatibility toggle; see the simple manual.
 6. As GM, open the **Token scene controls → network icon (NET Architect)**. There is also a launcher in the Settings sidebar. A macro can run `game.modules.get("cpr-net-architect").api.openManager()`.
 
 If the host only accepts a public manifest URL and does not permit custom folder/ZIP uploads, use its supported custom-module installation process. Use the manifest URL in the repository README.
@@ -45,7 +45,7 @@ The lowest-ID connected GM is authoritative. Start runs from that GM's client. O
 
 Template and runtime state live separately in the **GM-only world JournalEntry compendium `world.cpr-net-architect`**. Do not expose that pack to players or export it into a shared world Journal. The module checks its permissions before use. Its index uses opaque document names.
 
-Socket payloads use **ECDH P-256 / AES-GCM** encryption and authentication. Public keys are bound to Foundry User documents; private keys stay in browser memory. Forged sender IDs, replayed packets, stale revisions, observer mutations, and arbitrary player control actions are rejected. Every viewer gets an allowlisted state projection; unknown frontier cards have only an opaque ID and position. Paths reveal only discovered topology and immediately adjacent frontier routes.
+Socket payloads use **ECDH P-256 / AES-GCM** encryption and authentication by default, or bundled TweetNaCl encrypted transport when HTTP compatibility is enabled. Public keys are bound to Foundry User documents; private keys stay in browser memory. Forged sender IDs, replayed packets, stale revisions, observer mutations, and arbitrary player control actions are rejected. Every viewer gets an allowlisted state projection; unknown frontier cards have only an opaque ID and position. Paths reveal only discovered topology and immediately adjacent frontier routes.
 
 Player-initiated Interface and Program rolls use ordinary native CPR cards, including normal roll-mode visibility and chat history. They always post to chat regardless of the module’s chat-level setting. GM-controlled rolls retain the private-card system described here: public ChatMessages contain only neutral placeholders and opaque card IDs; the actual cards are stored in the private compendium and delivered encrypted to their authorized recipients. Existing cards can be recovered by an authorized user after reload while a GM is online. Normal CPR glyph handlers are rebound after delivery. Subsequent actions initiated through native CPR chat glyphs are handled by CPR itself. Module chat events never include hidden labels. Dice So Nice follows CPR's native roll mode behavior; it may display an unlabeled die outside the NET window.
 
@@ -111,3 +111,17 @@ Mark node attachments **Player-visible** in the editor and grant native document
 Press **Read** on a journal attachment to display permitted text and image pages inside the NET window’s inspector. Secret text and inaccessible pages remain hidden from players. PDF/video pages still use the native journal sheet. Observers can read shared journals but cannot take Items.
 
 Player rolls use ordinary Foundry client dice trust. The authority issues an expiring one-use grant and verifies the matching chat author, Actor, and grant before comparing the recorded total with its private DV. Arbitrary totals in socket requests are ignored. A cancelled roll does not spend a NET action; cancelling after changing LUCK follows CPR’s native behavior. Interrupted rolls after a GM change must be retried; already spent LUCK or posted cards are not rolled back. Existing 0.1.0 architectures need no migration.
+
+## Optional HTTP compatibility mode
+
+HTTPS remains the default and recommended connection. If your host only provides HTTP:
+
+1. Install NET Architect **0.3.0 or later** on the server.
+2. As GM, open **Game Settings → Configure Settings → NET Architect**. This setting is available even if NET Architect reports that synchronization could not start.
+3. Enable **HTTP compatibility mode (less secure connection)** and save.
+4. **Reload every GM, player, and observer client.** The world setting makes all clients use the same transport, including those connecting through HTTPS.
+5. Reopen NET Architect or rejoin the run. To return to default mode, disable the toggle and reload everyone again.
+
+Compatibility mode uses bundled **TweetNaCl.js 1.0.3** (Curve25519/XSalsa20-Poly1305) for encrypted, authenticated module messages. No CDN or plaintext fallback is used. GM authority, discovery filtering, replay rejection, and private card delivery stay in place. Browser `crypto.getRandomValues` remains required; the mode does not depend on `crypto.subtle` or `crypto.randomUUID`.
+
+**HTTP is still less secure:** an interceptor can modify the JavaScript or public-key documents loaded over HTTP, defeating application-level encryption. Foundry login, ordinary chat, and other traffic outside the module transport are not protected by this option. Use HTTPS when available. If you see a transport-mode mismatch after changing the toggle, reload all clients. No server proxy changes are needed to use this option.

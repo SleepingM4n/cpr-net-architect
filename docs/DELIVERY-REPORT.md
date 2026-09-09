@@ -34,3 +34,7 @@ Browser harness checks confirmed library rendering, selecting and saving a node 
 The host-relative manifest path must be **`Data/modules/cpr-net-architect/module.json`**. Upload/extract the ZIP using the hosting service's custom-module facilities, restart Foundry, enable the module in the CPR world, and reload all clients over HTTPS. The provider's absolute server filesystem path is unknown.
 
 Follow README's **First run: Kiroshi Warehouse** procedure: import example → attach native ICE/Program and Journal → link the physical Wall door → save/export → reload → Start Netrun with configured player Actor → player Jack In → resolve Password via native GM confirmation → move → REZ/attack ICE → clear and occupy Control → open physical door → Jack Out. Verify the physical Token never changed Scene or position. Run all detailed cases in `TEST-CHECKLIST.md`, including the separate outsider account's data-inspection checks.
+
+## 0.3.0 update
+
+Adds an off-by-default GM world HTTP compatibility setting, bundled encrypted transport, and HTTP-safe UUID generation. 38 automated tests pass, including simulated HTTP without WebCrypto subtle/randomUUID, tampering, replays, low-order keys, request/reply, mode mismatch and reconnect key rotation. Actual Pterodactyl/Foundry multiplayer acceptance remains pending.

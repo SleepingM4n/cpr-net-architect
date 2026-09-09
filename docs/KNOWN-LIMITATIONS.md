@@ -14,3 +14,17 @@
 12. **Host installation depends on custom-module support.** A ZIP-ready folder is supplied. There is no hosted manifest/download URL or auto-update endpoint. The host's absolute data path cannot be inferred from the supplied ZIP.
 
 These are documented scope boundaries, not claims that the live Foundry acceptance tests have passed.
+
+## Optional HTTP compatibility mode
+
+HTTPS remains the default and recommended connection. If your host only provides HTTP:
+
+1. Install NET Architect **0.3.0 or later** on the server.
+2. As GM, open **Game Settings → Configure Settings → NET Architect**. This setting is available even if NET Architect reports that synchronization could not start.
+3. Enable **HTTP compatibility mode (less secure connection)** and save.
+4. **Reload every GM, player, and observer client.** The world setting makes all clients use the same transport, including those connecting through HTTPS.
+5. Reopen NET Architect or rejoin the run. To return to default mode, disable the toggle and reload everyone again.
+
+Compatibility mode uses bundled **TweetNaCl.js 1.0.3** (Curve25519/XSalsa20-Poly1305) for encrypted, authenticated module messages. No CDN or plaintext fallback is used. GM authority, discovery filtering, replay rejection, and private card delivery stay in place. Browser `crypto.getRandomValues` remains required; the mode does not depend on `crypto.subtle` or `crypto.randomUUID`.
+
+**HTTP is still less secure:** an interceptor can modify the JavaScript or public-key documents loaded over HTTP, defeating application-level encryption. Foundry login, ordinary chat, and other traffic outside the module transport are not protected by this option. Use HTTPS when available. If you see a transport-mode mismatch after changing the toggle, reload all clients. No server proxy changes are needed to use this option.

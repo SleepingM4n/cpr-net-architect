@@ -1,6 +1,6 @@
 # NET Architect — simple manual
 
-For Foundry VTT **12.343**, **Cyberpunk RED – CORE v0.92.4**, and NET Architect **0.2.1**.
+For Foundry VTT **12.343**, **Cyberpunk RED – CORE v0.92.4**, and NET Architect **0.3.0**.
 
 ## 1. Prepare the runner and NET points
 
@@ -55,4 +55,18 @@ For a non-roll node, use **RESOLVE NODE** and move on. A node with GM approval e
 - **STOP VIEWING** only closes an observer's feed.
 - **RESET NETRUN** returns to the login screen and resets discovery; it does not replenish already claimed Item attachments in that run.
 
-Use one browser tab per Foundry user and connect through HTTPS. More detail: [reference](REFERENCE.md), [known limitations](KNOWN-LIMITATIONS.md), and [hosted checks](TEST-CHECKLIST.md).
+Use one browser tab per Foundry user and connect through HTTPS unless the GM explicitly enables HTTP compatibility. More detail: [reference](REFERENCE.md), [known limitations](KNOWN-LIMITATIONS.md), and [hosted checks](TEST-CHECKLIST.md).
+
+## Optional HTTP compatibility mode
+
+HTTPS remains the default and recommended connection. If your host only provides HTTP:
+
+1. Install NET Architect **0.3.0 or later** on the server.
+2. As GM, open **Game Settings → Configure Settings → NET Architect**. This setting is available even if NET Architect reports that synchronization could not start.
+3. Enable **HTTP compatibility mode (less secure connection)** and save.
+4. **Reload every GM, player, and observer client.** The world setting makes all clients use the same transport, including those connecting through HTTPS.
+5. Reopen NET Architect or rejoin the run. To return to default mode, disable the toggle and reload everyone again.
+
+Compatibility mode uses bundled **TweetNaCl.js 1.0.3** (Curve25519/XSalsa20-Poly1305) for encrypted, authenticated module messages. No CDN or plaintext fallback is used. GM authority, discovery filtering, replay rejection, and private card delivery stay in place. Browser `crypto.getRandomValues` remains required; the mode does not depend on `crypto.subtle` or `crypto.randomUUID`.
+
+**HTTP is still less secure:** an interceptor can modify the JavaScript or public-key documents loaded over HTTP, defeating application-level encryption. Foundry login, ordinary chat, and other traffic outside the module transport are not protected by this option. Use HTTPS when available. If you see a transport-mode mismatch after changing the toggle, reload all clients. No server proxy changes are needed to use this option.

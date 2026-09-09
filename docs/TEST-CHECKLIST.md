@@ -74,3 +74,13 @@ The browser harness is started with `node tests/serve-preview.mjs`, then opened 
 - As the player, attempt a node: only the player gets the native dialog; choose LUCK, roll, and verify an ordinary CPR card and correct GM-controlled outcome. Repeat with Program attack/defense/damage, cancellation, ties, and private roll modes.
 - Share an Item and journal with document permissions and Player-visible enabled. Clear and move to that node; Take Item adds one copy to the runner sheet. A second click/reconnect/reset must not duplicate it. A new NETRUN may grant it again.
 - Read opens journal content within the NET popup. Confirm secret text and individually restricted pages remain hidden. Observers may read but cannot take.
+
+## HTTP compatibility acceptance (0.3.0)
+
+- [ ] With the toggle off, a remote HTTP client receives the actionable HTTPS/compatibility error and cannot synchronize.
+- [ ] The GM can still find and save the toggle in Configure Settings after initialization fails.
+- [ ] Enable the toggle, reload all accounts, and verify library creation, UUID generation, Jack In, discovery, player rolls, Item pickup, inline journals, private GM cards and rejoin over remote HTTP.
+- [ ] Test a GM on HTTPS and runner on HTTP with the same world toggle enabled.
+- [ ] Verify observers cannot mutate runs and hidden nodes/cards do not appear in their projection.
+- [ ] Toggle off, reload everyone on HTTPS, and confirm default transport works again. Unreloaded peers should fail with a mode-mismatch message.
+- [ ] Test GM reconnect/authority handoff and public-key rotation.

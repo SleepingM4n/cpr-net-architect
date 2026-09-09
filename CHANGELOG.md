@@ -1,3 +1,11 @@
+# 0.3.0
+
+- Add a GM-only world HTTP compatibility toggle, off by default and requiring all clients to reload.
+- Bundle TweetNaCl.js for encrypted, authenticated synchronization without HTTPS-only WebCrypto APIs; retain the default AES-GCM transport when disabled.
+- Generate secure UUIDs on HTTP using crypto.getRandomValues.
+- Give actionable startup and mode-mismatch errors; document connection limitations and setup.
+- Preserve existing NET gameplay, GM controls, discovery filtering and private chat delivery.
+
 # 0.2.1
 
 - GitHub distribution manifest and release download URLs.

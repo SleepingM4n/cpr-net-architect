@@ -4,6 +4,8 @@
     "jackIn": "JACK IN",
     "jackOut": "JACK OUT",
     "settings": {
+      "httpCompatibility": "HTTP compatibility mode (less secure connection)",
+      "httpCompatibilityHint": "GM opt-in for servers without HTTPS. Uses bundled encryption for NET messages, but HTTP cannot protect login traffic or prevent an interceptor from changing loaded code. HTTPS remains recommended. Save and reload every GM/player client after changing this setting.",
       "defaultTheme": "Default visual theme",
       "allowObservers": "Allow observers",
       "promptObservers": "Automatically prompt observers",

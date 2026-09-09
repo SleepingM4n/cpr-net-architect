@@ -1,5 +1,15 @@
 import { ID } from "./constants.js";
 export function registerSettings() {
+  game.settings.register(ID, "httpCompatibility", {
+    name: "NETA.settings.httpCompatibility",
+    hint: "NETA.settings.httpCompatibilityHint",
+    scope: "world",
+    config: true,
+    type: Boolean,
+    default: false,
+    restricted: true,
+    requiresReload: true
+  });
   const fields = {
     defaultTheme: ["world", String, "red", {
       red: "Cyberpunk RED",

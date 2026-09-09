@@ -31,7 +31,7 @@ In Foundry Setup, open **Add-on Modules → Install Module**, paste this manifes
 https://github.com/SleepingM4n/cpr-net-architect/releases/latest/download/module.json
 ```
 
-Enable **NET Architect** in your CPR world's **Manage Modules**, then reload every client. On a hosting service, use its custom manifest installer; alternatively extract the release ZIP so the final path is `Data/modules/cpr-net-architect/module.json`. Connect through HTTPS.
+Enable **NET Architect** in your CPR world's **Manage Modules**, then reload every client. On a hosting service, use its custom manifest installer; alternatively extract the release ZIP so the final path is `Data/modules/cpr-net-architect/module.json`. Connect through HTTPS, or explicitly enable the optional HTTP compatibility mode below.
 
 ## Before playing: configure NET points
 
@@ -48,11 +48,11 @@ Enable **NET Architect** in your CPR world's **Manage Modules**, then reload eve
 
 ## Compatibility and scope
 
-Version **0.2.1** targets the exact versions above. No mandatory extra module or build step is required. One active NETRUN per world is supported. An active GM is required to authorize actions. The module's NET Action counter is bookkeeping; it does not itself enforce an action allowance.
+Version **0.3.0** targets the exact versions above. No mandatory extra module or build step is required. One active NETRUN per world is supported. An active GM is required to authorize actions. The module's NET Action counter is bookkeeping; it does not itself enforce an action allowance.
 
 Player rolls use CPR and ordinary Foundry client dice trust. Automatic opposed combat, Pathfinder breadth, ICE AI/pursuit, unsafe Jack Out damage, and virtual ICE damage application remain GM-adjudicated. See [known limitations](docs/KNOWN-LIMITATIONS.md).
 
-The prior build passed **36 automated tests** and browser UI checks using mocked Foundry services. The author supplied the demonstration video; the development environment has not independently validated a live hosted multiplayer session. See the [hosted checklist](docs/TEST-CHECKLIST.md).
+The prior build passed **38 automated tests** and browser UI checks using mocked Foundry services. The author supplied the demonstration video; the development environment has not independently validated a live hosted multiplayer session. See the [hosted checklist](docs/TEST-CHECKLIST.md).
 
 ## Development
 
@@ -62,3 +62,17 @@ node tests/check.mjs
 ```
 
 No npm install is required. Code is provided under the [MIT license](LICENSE). This independent community module does not bundle Cyberpunk RED rules, the CPR system, or Foundry VTT software. The demonstration video is user-supplied; game content shown remains the property of its respective owners.
+
+## Optional HTTP compatibility mode
+
+HTTPS remains the default and recommended connection. If your host only provides HTTP:
+
+1. Install NET Architect **0.3.0 or later** on the server.
+2. As GM, open **Game Settings → Configure Settings → NET Architect**. This setting is available even if NET Architect reports that synchronization could not start.
+3. Enable **HTTP compatibility mode (less secure connection)** and save.
+4. **Reload every GM, player, and observer client.** The world setting makes all clients use the same transport, including those connecting through HTTPS.
+5. Reopen NET Architect or rejoin the run. To return to default mode, disable the toggle and reload everyone again.
+
+Compatibility mode uses bundled **TweetNaCl.js 1.0.3** (Curve25519/XSalsa20-Poly1305) for encrypted, authenticated module messages. No CDN or plaintext fallback is used. GM authority, discovery filtering, replay rejection, and private card delivery stay in place. Browser `crypto.getRandomValues` remains required; the mode does not depend on `crypto.subtle` or `crypto.randomUUID`.
+
+**HTTP is still less secure:** an interceptor can modify the JavaScript or public-key documents loaded over HTTP, defeating application-level encryption. Foundry login, ordinary chat, and other traffic outside the module transport are not protected by this option. Use HTTPS when available. If you see a transport-mode mismatch after changing the toggle, reload all clients. No server proxy changes are needed to use this option.

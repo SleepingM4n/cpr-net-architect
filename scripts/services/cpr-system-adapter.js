@@ -1,4 +1,4 @@
-import { ABILITIES, ID, assert, setting, safeImage, optionalDocument } from "../constants.js";
+import { ABILITIES, ID, uid, assert, setting, safeImage, optionalDocument } from "../constants.js";
 import { makeArchitecture, makeNode, validateArchitecture } from "./import-export-service.js";
 import { autoLayout } from "../graph/graph-layout.js";
 
@@ -233,7 +233,7 @@ export class CPRSystemAdapter {
       if (!prev) prev = mapped.filter(p => p.depth === n.depth - 1 && p.branch < f.branch).at(-1);
       a.nodes.push(n);
       a.edges.push({
-        id: crypto.randomUUID(),
+        id: uid(),
         from: prev?.id ?? entry.id,
         to: n.id
       });
