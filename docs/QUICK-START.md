@@ -1,6 +1,6 @@
 # NET Architect — simple manual
 
-For Foundry VTT **12.343**, **Cyberpunk RED – CORE v0.92.4**, and NET Architect **0.3.0**.
+For Foundry VTT **12.343**, **Cyberpunk RED – CORE v0.92.4**, and NET Architect **0.4.0**.
 
 ## 1. Prepare the runner and NET points
 
@@ -41,19 +41,36 @@ For a non-roll node, use **RESOLVE NODE** and move on. A node with GM approval e
 - **Read:** click beside a journal attachment to read its permitted text/image pages within the popup. **Close Reader** collapses it; **Open Sheet** opens the native journal, including other media types.
 - Observers can read shared journals but cannot take Items or change the run.
 
-## 5. Programs, ICE, and GM controls
+## 5. Programs, ICE, and NET combat
 
-- Choose the Cyberdeck in the sidebar. Use **REZ / DEREZ** and the Program's **Attack / Defense / Damage** buttons. Player Program rolls also use native dialogs and ordinary chat.
-- For Black ICE, attach the native Actor; attach its matching **world Program Item** if you want native damage rolls. GM ICE controls include REZ/DEREZ, reveal/hide, defeat, and native rolls. Apply damage and adjudicate advanced NET combat with CPR's normal tools.
-- The GM may reveal/hide nodes, mark them cleared, move the runner, or show the view to selected players. Observers receive a read-only view.
-- Configure physical-map actions on a Control node. The runner must occupy and clear it before activating its controls. Macro execution requires explicit GM configuration/approval in this world.
+**Configure node visibility and bypass:** select a node in the architecture editor. Enable **Always visible** to show its name/type/icon even at a distance. Its connections only appear when the runner occupies an endpoint of that connection. Distant markers do not disclose notes, DV, attachments or ICE. Normal discovery still reveals the node's contents.
+
+Enable **Allow bypass** to start runs with that node passable without cracking it. During a run, select the node in the GM window and click **Allow Bypass / Disable Bypass** to change it for that run. Bypass permits movement to the node and onward through connected, accessible nodes. It does not mark the node cleared, disable ICE, or unlock Item pickup and Control actions. The runner may still attempt to crack it separately.
+
+**Prepare Black ICE:** attach a native Black ICE Actor and its matching Program Item to a node, or attach a standalone Black ICE Program. An Actor plus its damage Program produces one encounter. Click **Configure ICE** beside the attachment to override its name, PER, SPD, ATK, DEF, maximum REZ and Programs for future runs. Blank stats use the source. Programs supply damage formulas. No selected Programs uses the source Program, the Actor's embedded Programs, or Programs attached beside it.
+
+**Fight in the popup:**
+
+1. Jack In and open **NET COMBAT** from the NETRUN header. ICE deploys when its node is entered or triggered; the GM can also use **Deploy** in the combat window.
+2. Move the runner onto the ICE's node. The player clicks **Target ICE**, then **Zap Attack** or a rezzed Program's **ATK**. The player receives the normal CPR dialog and the roll appears in chat.
+3. The GM rolls the ICE's **DEF**, compares the rolls, then chooses **Confirm Hit** or **Confirm Miss** in the combat log. To attack the runner, choose the runner or one of their rezzed Programs in the ICE target selector, click **Set ICE Target**, and roll **ATK**. The player rolls **Interface Defense** or the appropriate Program defense.
+4. After a hit, roll **Zap Damage**, Program **DAMAGE**, or ICE **DAMAGE**. The ICE's **Roll with** selector chooses its base stats or a copied Program; its default damage uses the first Program. Runner Program damage against virtual ICE uses its Black ICE formula. ICE damage uses its Program's standard formula against the runner and Black ICE formula against a runner Program.
+5. The GM clicks **Confirm / Apply Damage** and enters **final damage after all reductions and special effects**. This subtracts encounter REZ for ICE, real Character HP for the runner, or real Program REZ for a runner Program. A Program reaching zero is derezzed; ICE reaching zero is defeated. The same damage record cannot be applied twice. Hit decisions and damage are separate GM steps; no opposed result, critical bonus or special effect is applied automatically.
+6. Use **Edit Encounter** to change current/max REZ, stats or Programs while playing. To add/remove Programs, check **Replace the encounter's Program list** and select the desired Programs. These edits affect only this run. The original Actor and Program Items are unchanged. To re-activate defeated ICE, restore its REZ and press **REZ**.
+7. To move ICE, the GM chooses a destination under **Move along connection** and presses **Move ICE**. Each move follows one connected edge. This is virtual movement, with no Scene Token changes or automatic pursuit. Moving either combatant apart clears its target; select a target again when they share a node. Hidden or undiscovered ICE cannot be targeted by the player.
+
+Choose the runner's Cyberdeck in the main sidebar. Runner Program REZ/DEREZ affects the real installed Program. Native rolls may warn that no physical Token is targeted; virtual targets belong to NET Architect. Apply NET damage using the combat window, not the chat card's physical-token damage glyph, to avoid applying it twice or to the wrong Token.
+
+The NET Action counter remains manual bookkeeping: separate attack/damage/defense rolls can each increment it. The GM resets/adjusts the allowance; no automatic initiative order or ICE AI is added. Observers can see shared combat information but cannot target, roll or apply damage.
+
+The GM may also reveal/hide nodes, mark them cleared, move the runner, or show the view to selected players. Configure physical-map actions on a Control node; the runner must occupy and clear it before activating them. Macro execution requires explicit GM configuration/approval in this world.
 
 ## 6. Finish or return later
 
 - **JACK OUT** (player) or **END NETRUN** (GM) ends the run.
 - Closing the window does not end the session. Reopen it through the NET Architect launcher.
 - **STOP VIEWING** only closes an observer's feed.
-- **RESET NETRUN** returns to the login screen and resets discovery; it does not replenish already claimed Item attachments in that run.
+- **RESET NETRUN** returns to the login screen and resets discovery, bypass overrides and encounter ICE from the template; it does not undo real HP/Program damage or replenish already claimed Item attachments in that run.
 
 Use one browser tab per Foundry user and connect through HTTPS unless the GM explicitly enables HTTP compatibility. More detail: [reference](REFERENCE.md), [known limitations](KNOWN-LIMITATIONS.md), and [hosted checks](TEST-CHECKLIST.md).
 

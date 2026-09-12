@@ -10,7 +10,9 @@ Interactive **Cyberpunk RED NET Architectures** for **Foundry VTT 12.343** and *
 - **Explore together:** player Jack In, separate virtual movement, hidden nodes, discovery, challenge DVs, retries, and success/failure feedback.
 - **Let the player roll:** native CPR Interface and Program dialogs run on the player's client, with ordinary CPR results in chat. The GM applies challenge outcomes.
 - **Collect and read:** take shared Item attachments into the runner's sheet and read permitted journal text and images inside the popup.
-- **Run encounters:** installed Cyberdeck Programs, REZ/DEREZ, virtual Black ICE/Demon encounter state, native rolls, and a manual NET Action counter.
+- **Fight inside the module:** runner/ICE targeting, native attack/defense/damage rolls, and a combat log where the GM confirms hits and applies final damage.
+- **Customize and move Black ICE:** encounter-only stats, REZ and Program copies; GM movement along the architecture connections. Source Actors and Items stay unchanged.
+- **Control visibility and access:** distant node markers with connections shown only at the current adjacent node; per-node bypass allows travel without cracking or unlocking rewards.
 - **Keep GM control:** reveal/hide/clear nodes, move the runner, broadcast to selected observers, reset/end runs, and reconnect to persisted sessions.
 - **Connect to the physical map:** configured doors, lights, sounds, Tiles, Tokens, and explicitly approved Macros.
 - **Choose a look:** RED and neon themes, sound/effect options, and reduced motion.
@@ -44,15 +46,16 @@ Enable **NET Architect** in your CPR world's **Manage Modules**, then reload eve
 3. Add your world's ICE, Items, journals, and controls, then save. Share player attachments and grant native document permissions.
 4. Choose **START NETRUN**, select the runner, configure NET points/NET Action usage, and have the player press **JACK IN**.
 5. Select an adjacent signal, **ATTEMPT ACCESS**, roll, and then **MOVE HERE** after resolving it. At a cleared current node, **Take Item** collects rewards; **Read** opens a journal in the popup.
-6. **JACK OUT** ends the run. Closing the window only closes that user's view.
+6. Open **NET COMBAT** to target nearby ICE, roll attacks and defenses, and let the GM confirm hits and apply final damage. See the [combat manual](docs/QUICK-START.md#5-programs-ice-and-net-combat).
+7. **JACK OUT** ends the run. Closing the window only closes that user's view.
 
 ## Compatibility and scope
 
-Version **0.3.0** targets the exact versions above. No mandatory extra module or build step is required. One active NETRUN per world is supported. An active GM is required to authorize actions. The module's NET Action counter is bookkeeping; it does not itself enforce an action allowance.
+Version **0.4.0** targets the exact versions above. No mandatory extra module or build step is required. One active NETRUN per world is supported. An active GM is required to authorize actions. The module's NET Action counter is bookkeeping; it does not itself enforce an action allowance.
 
-Player rolls use CPR and ordinary Foundry client dice trust. Automatic opposed combat, Pathfinder breadth, ICE AI/pursuit, unsafe Jack Out damage, and virtual ICE damage application remain GM-adjudicated. See [known limitations](docs/KNOWN-LIMITATIONS.md).
+Player rolls use CPR and ordinary Foundry client dice trust. NET Combat applies the final damage entered by the GM to encounter REZ or the runner’s real HP/Program REZ. Hit decisions, reductions, special effects, action economy, Pathfinder breadth, ICE pursuit and unsafe Jack Out remain GM-adjudicated. See [known limitations](docs/KNOWN-LIMITATIONS.md).
 
-The prior build passed **38 automated tests** and browser UI checks using mocked Foundry services. The author supplied the demonstration video; the development environment has not independently validated a live hosted multiplayer session. See the [hosted checklist](docs/TEST-CHECKLIST.md).
+This build passed **49 automated tests** and browser UI checks using mocked Foundry services. The author supplied the demonstration video; the development environment has not independently validated a live hosted multiplayer session. See the [hosted checklist](docs/TEST-CHECKLIST.md).
 
 ## Development
 

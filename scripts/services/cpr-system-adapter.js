@@ -28,6 +28,8 @@ export class CPRSystemAdapter {
       name: actor.name,
       img: safeImage(actor.img),
       rank: Number(role?.system.rank ?? actor.system.stats?.interface ?? 0),
+      hp: actor.system.derivedStats?.hp?.value,
+      maxHp: actor.system.derivedStats?.hp?.max,
       deckId: deck?.id ?? "",
       deckName: deck?.name ?? "No cyberdeck detected",
       decks: this.decks(actor).map(d => ({
@@ -70,9 +72,12 @@ export class CPRSystemAdapter {
     recipients = [],
     hidden = false,
     dialog = true,
-    playerGrant = null
+    playerGrant = null,
+    targetName = "",
+    allowLuck = true
   } = {}) {
     assert(roll && typeof roll.roll === "function", "CPR roll API unavailable.");
+    if (targetName) roll.rollTitle = `${roll.rollTitle} → ${targetName}`;
     // Run CPR's native dialog and dice on the initiating client's actor.
     if (dialog && !(await roll.handleRollDialog({
       type: "click",
@@ -80,6 +85,7 @@ export class CPRSystemAdapter {
       metaKey: false
     }, actor, item))) return null;
     if (item) roll = await item.confirmRoll(roll);
+    if (!allowLuck) roll.luck = 0;
     await roll.roll();
     if (Number.isInteger(roll.luck) && roll.luck > 0 && actor.system.stats?.luck) {
       await actor.update({
@@ -127,6 +133,7 @@ export class CPRSystemAdapter {
     dv,
     deckId,
     override = false,
+    executionType,
     ...options
   }) {
     assert(ABILITIES.includes(ability), "Unsupported native Interface ability.");
@@ -141,6 +148,7 @@ export class CPRSystemAdapter {
     assert(this.qualifies(actor) || override, "This Actor is not a configured Netrunner.");
     return this.execute(deck.createRoll("interfaceAbility", actor, {
       interfaceAbility: ability,
+      executionType,
       cyberdeck: deck,
       netRoleItem
     }), actor, deck, {
@@ -166,12 +174,38 @@ export class CPRSystemAdapter {
     assert(p.system.isRezzed, "REZ the Program before using it.");
     const netRoleItem = this.role(actor);
     assert(netRoleItem, "NET Role is not configured.");
-    return this.execute(deck.createRoll("cyberdeckProgram", actor, {
+    const roll = deck.createRoll("cyberdeckProgram", actor, {
       cyberdeckId: deck.id,
       programId: p.id,
       executionType: action,
       netRoleItem
-    }), actor, deck, options);
+    });
+    if (action === "damage" && options?.targetKind === "ice") {
+      const formula = p.system.damage.blackIce;
+      assert(typeof formula === "string" && Roll.validate(formula), "Program Black ICE damage formula is invalid.");
+      // Reparse the formula with CPR, retaining effects but replacing the old formula's modifiers.
+      const formulaSource = game.i18n.localize("CPR.rolls.modifiers.sources.rollFormula");
+      roll.mods = roll.mods.filter(mod => mod.source !== formulaSource);
+      roll.formula = roll._processFormula(formula.toLowerCase());
+    }
+    return this.execute(roll, actor, deck, options);
+  }
+  async encounterRoll(ice, action, programId, runner, options) {
+    assert(["atk", "def", "spd", "per", "damage"].includes(action), "Invalid ICE roll.");
+    const { CPRProgramStatRoll, CPRDamageRoll } = await this.nativeRolls();
+    const program = programId ? ice.programs.find(p => p.id === programId) : ice.programs[0];
+    assert(!programId || program, "Selected encounter Program no longer exists.");
+    assert(action !== "damage" || program, "Add a Program to this encounter to provide its damage formula.");
+    const formula = ice.target?.kind === "program" ? program?.system.damage?.blackIce : program?.system.damage?.standard;
+    assert(action !== "damage" || typeof formula === "string" && Roll.validate(formula), "Program damage formula is invalid.");
+    const value = programId ? Number(program?.system[action]) : Number(ice.stats[action]);
+    assert(action === "damage" || Number.isFinite(value), "Selected Program has no value for this stat.");
+    const title = programId ? `${ice.name} / ${program.name}` : ice.name;
+    const roll = action === "damage" ? new CPRDamageRoll(title, formula, "program") : new CPRProgramStatRoll(action.toUpperCase(), value);
+    roll.setNetCombat(title);
+    if (program) roll.rollCardExtraArgs.program = program;
+    const source = await optionalDocument(ice.documentUuid);
+    return this.execute(roll, source?.documentName === "Actor" ? source : runner, null, { ...options, allowLuck: false, targetName: ["atk", "damage"].includes(action) ? ice.target?.name : "" });
   }
   isIce(doc) {
     return doc?.type === "blackIce" || doc?.type === "demon" || doc?.type === "program" && doc.system.class === "blackice";

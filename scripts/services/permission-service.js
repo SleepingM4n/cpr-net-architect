@@ -17,7 +17,7 @@ export function getVisibleSessionStateForUser(session, user) {
     seen = new Set(session.discoveredNodeIds),
     frontier = new Set();
   if (session.status === "active") for (const id of neighbors(a, session.currentNodeId)) if (!seen.has(id)) frontier.add(id);
-  const nodes = a.nodes.filter(n => seen.has(n.id) || frontier.has(n.id)).map(n => seen.has(n.id) ? {
+  const nodes = a.nodes.filter(n => seen.has(n.id) || frontier.has(n.id) || session.status === "active" && n.alwaysVisible).map(n => seen.has(n.id) ? {
     id: n.id,
     name: n.name,
     type: n.type,
@@ -37,6 +37,9 @@ export function getVisibleSessionStateForUser(session, user) {
       id: c.id,
       label: c.label
     })) : []
+  } : n.alwaysVisible ? {
+    id: n.id, x: n.x, y: n.y, name: n.name, type: n.type,
+    icon: n.icon, color: n.color, remote: true, attachments: [], controls: []
   } : {
     id: n.id,
     x: n.x,
@@ -59,6 +62,7 @@ export function getVisibleSessionStateForUser(session, user) {
     clearedNodeIds: session.clearedNodeIds.filter(id => seen.has(id)),
     failedNodeIds: session.failedNodeIds.filter(id => seen.has(id)),
     compromisedNodeIds: session.compromisedNodeIds.filter(id => seen.has(id)),
+    bypassNodeIds: (session.bypassNodeIds ?? []).filter(id => visible.has(id)),
     iceStates: {},
     actions: clone(session.actions),
     combat: clone(session.combat),
@@ -71,7 +75,9 @@ export function getVisibleSessionStateForUser(session, user) {
       name: a.name,
       theme: a.theme,
       nodes,
-      edges: a.edges.filter(e => visible.has(e.from) && visible.has(e.to) && (seen.has(e.from) && seen.has(e.to) || e.from === session.currentNodeId || e.to === session.currentNodeId)).map(clone)
+      edges: a.edges.filter(e => visible.has(e.from) && visible.has(e.to) &&
+        (!(a.nodes.find(n => n.id === e.from)?.alwaysVisible || a.nodes.find(n => n.id === e.to)?.alwaysVisible) || e.from === session.currentNodeId || e.to === session.currentNodeId) &&
+        (seen.has(e.from) && seen.has(e.to) || e.from === session.currentNodeId || e.to === session.currentNodeId)).map(clone)
     }
   };
   // Observers do not need access to the runner's inventory identifiers.
@@ -84,7 +90,17 @@ export function getVisibleSessionStateForUser(session, user) {
     nodeId: state.nodeId,
     rezzed: state.rezzed,
     defeated: state.defeated,
-    name: state.name
+    name: state.name,
+    visible: true,
+    rez: clone(state.rez ?? { value: 0, max: 0 }),
+    target: state.target ? { kind: state.target.kind, id: state.target.id, name: state.target.name } : null
   };
+  out.runnerTargetId = out.iceStates[session.runnerTargetId] ? session.runnerTargetId : null;
+  out.netCombat = (session.netCombat ?? []).filter(entry => !entry.hidden &&
+    (entry.source?.kind !== "ice" || out.iceStates[entry.source.id]) &&
+    (entry.target?.kind !== "ice" || out.iceStates[entry.target.id])).map(entry => ({
+      id: entry.id, kind: entry.kind, source: clone(entry.source), target: clone(entry.target),
+      total: entry.total, status: entry.status, appliedDamage: entry.appliedDamage
+    }));
   return out;
 }

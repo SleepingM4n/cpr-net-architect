@@ -1,4 +1,5 @@
 import { ID, VERSION, ABILITIES, CONTROL_TYPES, uid, clone, assert } from "../constants.js";
+import { normalizeIceConfig } from "./net-combat-service.js";
 
 // Allowlist normalization is intentional: imported executable fields, prototype keys,
 // and unknown object properties never enter the world state.
@@ -22,6 +23,8 @@ export function makeNode(type = "custom", x = 80, y = 80) {
     color: "",
     notes: "",
     gmNotes: "",
+    alwaysVisible: false,
+    bypassAllowed: false,
     attachments: [],
     controls: [],
     challenge: {
@@ -84,6 +87,8 @@ export function validateArchitecture(input) {
       color: /^#[0-9a-f]{6}$/i.test(n.color) ? n.color : "",
       notes: str(n.notes),
       gmNotes: str(n.gmNotes),
+      alwaysVisible: n.alwaysVisible === true,
+      bypassAllowed: n.bypassAllowed === true,
       challenge: {
         enabled: !!c.enabled,
         action: ABILITIES.includes(c.action) ? c.action : "pathfinder",
@@ -101,7 +106,8 @@ export function validateArchitecture(input) {
         return {
           id: a.id,
           uuid: str(a.uuid, 300),
-          visible: a.visible === true
+          visible: a.visible === true,
+          ...(a.iceConfig ? { iceConfig: normalizeIceConfig(a.iceConfig) } : {})
         };
       }),
       controls: controls.map(a => {

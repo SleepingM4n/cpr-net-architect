@@ -2,6 +2,7 @@ import { ID, uid, clone, assert, setting, requireGM, log, optionalDocument } fro
 import { authority } from "./socket-service.js";
 import { canRun, canView, getVisibleSessionStateForUser } from "./permission-service.js";
 import { neighbors } from "../graph/graph-layout.js";
+import { NetCombatService } from "./net-combat-service.js";
 const add = (array, id) => {
   if (!array.includes(id)) array.push(id);
 };
@@ -14,6 +15,7 @@ export class SessionService {
       controls
     });
     this.session = null;
+    this.netCombat = new NetCombatService(this);
     this.queue = Promise.resolve();
   }
   isAuthority() {
@@ -23,6 +25,7 @@ export class SessionService {
     await this.store.refresh();
     this.session = this.store.loadSession();
     if (this.session) {
+      await this.netCombat.hydrateLegacy();
       await this.refreshProfile();
       await this.publish(false);
     }
@@ -68,6 +71,7 @@ export class SessionService {
       clearedNodeIds: [],
       failedNodeIds: [],
       compromisedNodeIds: [],
+      bypassNodeIds: architecture.nodes.filter(n => n.bypassAllowed).map(n => n.id),
       iceStates: {},
       actions: {
         max: Number(actions) || 0,
@@ -94,7 +98,7 @@ export class SessionService {
     const state = getVisibleSessionStateForUser(this.session, user);
     if (!state || user.isGM) return state;
     for (const node of state.architecture.nodes) {
-      if (node.unknown) continue;
+      if (node.unknown || node.remote) continue;
       const original = this.session.architecture.nodes.find(n => n.id === node.id);
       for (const a of original.attachments) {
         if (!a.visible) continue;
@@ -142,30 +146,23 @@ export class SessionService {
     Hooks.callAll("cprNetArchitectNodeRevealed", this.session, node);
   }
   async rezNode(node, visible = true) {
-    for (const a of node.attachments) {
-      const doc = await optionalDocument(a.uuid);
+    for (const { attachment: a, doc } of await this.netCombat.candidates(node)) {
       if (this.adapter.isIce(doc)) {
         const existing = this.session.iceStates[a.id];
         if (existing) {
           existing.visible ||= visible;
           continue;
         }
-        this.session.iceStates[a.id] = {
-          nodeId: node.id,
-          documentUuid: a.uuid,
-          name: doc.name,
-          rezzed: true,
-          defeated: false,
-          visible,
-          targetActorUuid: this.session.runner.actorUuid
-        };
+        this.session.iceStates[a.id] = await this.netCombat.create(node, a, visible);
       }
     }
   }
   async move(node) {
-    if (!node.challenge.enabled || node.challenge.autoResolve) add(this.session.clearedNodeIds, node.id);
+    if (!this.session.bypassNodeIds?.includes(node.id) && (!node.challenge.enabled || node.challenge.autoResolve)) add(this.session.clearedNodeIds, node.id);
     this.session.previousNodeId = this.session.currentNodeId;
     this.session.currentNodeId = node.id;
+    this.session.runnerTargetId = null;
+    for (const ice of Object.values(this.session.iceStates)) if (ice.nodeId !== node.id) ice.target = null;
     await this.reveal(node);
     await this.rezNode(node);
   }
@@ -254,7 +251,10 @@ export class SessionService {
       s.clearedNodeIds = [];
       s.failedNodeIds = [];
       s.compromisedNodeIds = [];
+      s.bypassNodeIds = s.architecture.nodes.filter(n => n.bypassAllowed).map(n => n.id);
       s.iceStates = {};
+      s.netCombat = [];
+      s.runnerTargetId = null;
       s.actions.used = 0;
       s.event = null;
       await this.commit(true);
@@ -271,6 +271,8 @@ export class SessionService {
       return;
     }
     assert(s.status === "active", "Press JACK IN first.");
+    const combatReply = await this.netCombat.handle(user, req, actor, completedResult);
+    if (combatReply) return combatReply === true ? undefined : combatReply;
     if (req.action === "deck") {
       assert(this.adapter.decks(actor).some(d => d.id === req.deckId), "Cyberdeck no longer exists.");
       s.runner.profile.deckId = req.deckId;
@@ -278,16 +280,21 @@ export class SessionService {
       return;
     }
     if (req.action === "program") {
+      const offensive = ["atk", "damage"].includes(req.programAction);
+      const combatTarget = completedResult ? req.combatTarget : offensive && s.runnerTargetId ? this.netCombat.targetIce(s.runnerTargetId, !gm) : null;
+      if (!completedResult) req = { ...req, combatTarget };
       if (!gm && ["atk", "def", "damage"].includes(req.programAction) && !completedResult) {
         const program = this.adapter.deck(actor, s.runner.profile.deckId)?.getInstalledItems("program").find(p => p.id === req.programId);
         assert(program?.system.isRezzed, "REZ an installed Program before rolling.");
-        return this.grantRoll(user, req, { programId: req.programId, programAction: req.programAction });
+        return this.grantRoll(user, req, { programId: req.programId, programAction: req.programAction, targetName: combatTarget?.name, targetKind: combatTarget?.kind });
       }
       const result = completedResult ?? await this.adapter.program(actor, s.runner.profile.deckId, req.programId, req.programAction, {
         recipients: [s.runner.userId, ...s.observers],
-        runnerUuid: s.runner.actorUuid
+        runnerUuid: s.runner.actorUuid,
+        targetName: combatTarget?.name, targetKind: combatTarget?.kind
       });
       if (!result && !["rez", "derez"].includes(req.programAction)) return;
+      this.netCombat.record(req.programAction, { kind: "runner", name: actor.name }, combatTarget, result);
       s.actions.used++;
       await this.commit();
       return;
@@ -323,10 +330,15 @@ export class SessionService {
       await this.commit();
       return;
     }
-    const gmActions = ["reveal", "hide", "revealAll", "revealBranch", "moveGM", "clear", "compromise", "ice", "iceRoll"];
+    const gmActions = ["bypass", "reveal", "hide", "revealAll", "revealBranch", "moveGM", "clear", "compromise", "ice", "iceRoll"];
     if (gmActions.includes(req.action)) {
       assert(gm, "GM only.");
       switch (req.action) {
+        case "bypass":
+          s.bypassNodeIds ??= [];
+          if (s.bypassNodeIds.includes(node.id)) s.bypassNodeIds = s.bypassNodeIds.filter(id => id !== node.id);
+          else s.bypassNodeIds.push(node.id);
+          break;
         case "reveal":
           await this.reveal(node);
           break;
@@ -364,41 +376,24 @@ export class SessionService {
           {
             const attachment = node.attachments.find(a => a.id === req.attachmentId);
             assert(attachment, "ICE attachment missing.");
-            const doc = await this.adapter.resolve(attachment.uuid);
-            assert(this.adapter.isIce(doc), "Attachment is not ICE/Demon.");
-            const state = s.iceStates[attachment.id] ?? {
-              nodeId: node.id,
-              documentUuid: doc.uuid,
-              name: doc.name,
-              rezzed: false,
-              defeated: false,
-              visible: false,
-              targetActorUuid: s.runner.actorUuid
-            };
-            assert(["rez", "derez", "reveal", "hide", "defeat"].includes(req.operation), "Invalid ICE operation.");
-            if (req.operation === "rez") { state.rezzed = true; state.defeated = false; }
-            if (req.operation === "derez") state.rezzed = false;
-            if (req.operation === "defeat") {
-              state.defeated = true;
-              state.rezzed = false;
-            }
-            if (req.operation === "reveal") state.visible = true;
-            if (req.operation === "hide") state.visible = false;
-            s.iceStates[attachment.id] = state;
-            break;
+            s.iceStates[attachment.id] ??= { ...await this.netCombat.create(node, attachment, false), rezzed: false };
+            await this.netCombat.handle(user, { action: "iceStatus", iceId: attachment.id, operation: req.operation }, actor);
+            return;
           }
         case "iceRoll":
           {
             const a = node.attachments.find(a => a.id === req.attachmentId);
             assert(a, "ICE attachment missing.");
             const doc = await this.adapter.resolve(a.uuid);
-            const programs = await Promise.all(node.attachments.map(a => optionalDocument(a.uuid)));
-            const program = programs.find(d => d?.type === "program");
-            await this.adapter.iceRoll(doc, req.stat, program?.uuid, {
-              recipients: [s.runner.userId, ...s.observers],
-              hidden: !s.discoveredNodeIds.includes(node.id) || !s.iceStates[a.id]?.visible,
-              runnerUuid: s.runner.actorUuid
-            });
+            if (doc.type === "demon") {
+              await this.adapter.iceRoll(doc, req.stat, null, { recipients: [s.runner.userId, ...s.observers], hidden: !s.discoveredNodeIds.includes(node.id) || !s.iceStates[a.id]?.visible, runnerUuid: s.runner.actorUuid });
+            } else {
+              s.iceStates[a.id] ??= await this.netCombat.create(node, a, false);
+              const ice = s.iceStates[a.id];
+              const hidden = !s.discoveredNodeIds.includes(ice.nodeId) || !ice.visible;
+              const result = await this.adapter.encounterRoll(ice, req.stat, null, actor, { recipients: [s.runner.userId, ...s.observers], hidden });
+              this.netCombat.record(req.stat, { kind: "ice", id: a.id, name: ice.name }, ["atk", "damage"].includes(req.stat) ? clone(ice.target) : null, result, hidden);
+            }
             break;
           }
       }
@@ -443,7 +438,7 @@ export class SessionService {
           await this.event("ACCESS DENIED", false);
         }
       } else if (req.action === "move") {
-        assert(s.clearedNodeIds.includes(node.id) || (!node.challenge.requireApproval && (!node.challenge.enabled || node.challenge.autoResolve)), "Resolve the challenge before moving through it.");
+        assert(s.bypassNodeIds?.includes(node.id) || s.clearedNodeIds.includes(node.id) || (!node.challenge.requireApproval && (!node.challenge.enabled || node.challenge.autoResolve)), "Resolve the challenge or ask the GM to allow bypass before moving through it.");
         await this.move(node);
       } else if (req.action === "control") {
         await this.controls.execute(s, node, req.controlId);

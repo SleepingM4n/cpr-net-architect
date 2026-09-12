@@ -1,3 +1,4 @@
+import { iceConfigDialog } from "./ice-config.js";
 import { ID, TYPES, ABILITIES, CONTROL_TYPES, clone, uid, escapeHTML as e, requireGM, assert, log, optionalDocument } from "../constants.js";
 import { makeNode, validateArchitecture, downloadArchitecture } from "../services/import-export-service.js";
 import { autoLayout } from "../graph/graph-layout.js";
@@ -23,9 +24,9 @@ export class ArchitectureEditor extends NETApplication {
     if (n) {
       const attachments = await Promise.all(n.attachments.map(async x => {
         const doc = await optionalDocument(x.uuid);
-        return `<li>${e(doc?.name ?? "Missing Document")} <small>${e(doc?.documentName ?? x.uuid)}</small>${b("attachment-open", "Open", `data-id="${x.id}"`)}${b("attachment-visibility", x.visible ? "Player-visible" : "GM-only", `data-id="${x.id}"`)}${b("attachment-remove", "Remove", `data-id="${x.id}"`)}</li>`;
+        return `<li>${e(doc?.name ?? "Missing Document")} <small>${e(doc?.documentName ?? x.uuid)}</small>${b("attachment-open", "Open", `data-id="${x.id}"`)}${b("attachment-visibility", x.visible ? "Player-visible" : "GM-only", `data-id="${x.id}"`)}${this.runtime.adapter.isIce(doc) ? b("ice-config", "Configure ICE", `data-id="${x.id}"`) : ""}${b("attachment-remove", "Remove", `data-id="${x.id}"`)}</li>`;
       }));
-      inspector = `<h3>NODE CONFIGURATION</h3><form class="neta-node-form">${field("name", "Name", n.name)}<label>Type<select name="type">${options([...new Set([...TYPES, n.type])], n.type)}</select></label>${field("customType", "Custom type (optional)", "")}${field("depth", "Floor / depth", n.depth ?? "", "number")}${field("icon", "Icon / symbol", n.icon)}${field("color", "Accent", n.color || "#ee354e", "color")}<label>Player notes<textarea name="notes">${e(n.notes)}</textarea></label><label>GM notes<textarea name="gmNotes">${e(n.gmNotes)}</textarea></label><h4>CHALLENGE</h4>${check("enabled", "Enable Interface check", n.challenge.enabled)}<label>Native action<select name="action">${options(ABILITIES, n.challenge.action)}</select></label>${field("dv", "Difficulty Value", n.challenge.dv, "number")}${[["revealOnSuccess", "Reveal on success"], ["allowRetry", "Allow retry"], ["blocksOnFailure", "Failure blocks movement"], ["activateIceOnFailure", "Failure activates attached ICE"], ["autoResolve", "Automatically resolve"], ["requireApproval", "GM approval required"]].map(([key, label]) => check(key, label, n.challenge[key])).join("")}</form><div class="neta-toolbar">${b("entry", "Set Entry")}${b("duplicate-node", "Duplicate")}${b("delete-node", "Delete")}</div><h4>CONNECTIONS</h4><label>Connect to<select class="neta-connect-target">${options(a.nodes.filter(x => x.id !== n.id).map(x => [x.id, x.name]))}</select></label>${b("connect", "Connect")}<ul>${a.edges.filter(x => x.from === n.id || x.to === n.id).map(edge => `<li>${e(a.nodes.find(x => x.id === (edge.from === n.id ? edge.to : edge.from))?.name)}${b("disconnect", "Disconnect", `data-id="${edge.id}"`)}${b("reconnect", "Reconnect", `data-id="${edge.id}"`)}</li>`).join("")}</ul><h4>ATTACHMENTS</h4><p class="neta-muted">Drop Actors, Items, Journals, Pages, or Macros onto the node. New links are GM-only.</p><ul>${attachments.join("")}</ul><h4>MEATSPACE CONTROLS</h4>${b("add-control", "Add Control Action")}<ul>${n.controls.map(c => `<li>${e(c.label)} <small>${e(c.documentType)} / ${e(c.action)} ${c.approved ? "APPROVED" : ""}</small>${b("edit-control", "Edit", `data-id="${c.id}"`)}${b("remove-control", "Remove", `data-id="${c.id}"`)}</li>`).join("")}</ul>`;
+      inspector = `<h3>NODE CONFIGURATION</h3><form class="neta-node-form">${field("name", "Name", n.name)}<label>Type<select name="type">${options([...new Set([...TYPES, n.type])], n.type)}</select></label>${field("customType", "Custom type (optional)", "")}${field("depth", "Floor / depth", n.depth ?? "", "number")}${field("icon", "Icon / symbol", n.icon)}${field("color", "Accent", n.color || "#ee354e", "color")}<label>Player notes<textarea name="notes">${e(n.notes)}</textarea></label><label>GM notes<textarea name="gmNotes">${e(n.gmNotes)}</textarea></label>${check("alwaysVisible", "Always show node (connections only nearby)", n.alwaysVisible)}${check("bypassAllowed", "Allow bypass without cracking (GM can change during run)", n.bypassAllowed)}<h4>CHALLENGE</h4>${check("enabled", "Enable Interface check", n.challenge.enabled)}<label>Native action<select name="action">${options(ABILITIES, n.challenge.action)}</select></label>${field("dv", "Difficulty Value", n.challenge.dv, "number")}${[["revealOnSuccess", "Reveal on success"], ["allowRetry", "Allow retry"], ["blocksOnFailure", "Failure blocks movement"], ["activateIceOnFailure", "Failure activates attached ICE"], ["autoResolve", "Automatically resolve"], ["requireApproval", "GM approval required"]].map(([key, label]) => check(key, label, n.challenge[key])).join("")}</form><div class="neta-toolbar">${b("entry", "Set Entry")}${b("duplicate-node", "Duplicate")}${b("delete-node", "Delete")}</div><h4>CONNECTIONS</h4><label>Connect to<select class="neta-connect-target">${options(a.nodes.filter(x => x.id !== n.id).map(x => [x.id, x.name]))}</select></label>${b("connect", "Connect")}<ul>${a.edges.filter(x => x.from === n.id || x.to === n.id).map(edge => `<li>${e(a.nodes.find(x => x.id === (edge.from === n.id ? edge.to : edge.from))?.name)}${b("disconnect", "Disconnect", `data-id="${edge.id}"`)}${b("reconnect", "Reconnect", `data-id="${edge.id}"`)}</li>`).join("")}</ul><h4>ATTACHMENTS</h4><p class="neta-muted">Drop Actors, Items, Journals, Pages, or Macros onto the node. New links are GM-only.</p><ul>${attachments.join("")}</ul><h4>MEATSPACE CONTROLS</h4>${b("add-control", "Add Control Action")}<ul>${n.controls.map(c => `<li>${e(c.label)} <small>${e(c.documentType)} / ${e(c.action)} ${c.approved ? "APPROVED" : ""}</small>${b("edit-control", "Edit", `data-id="${c.id}"`)}${b("remove-control", "Remove", `data-id="${c.id}"`)}</li>`).join("")}</ul>`;
     }
     return {
       body: `<div class="neta-shell neta-theme-${a.theme}"><header class="neta-header"><div><span class="neta-kicker">NET ARCHITECT / EDIT MODE ${this.dirty ? "/ UNSAVED" : ""}</span><h2>${e(a.name)}</h2></div><div class="neta-toolbar">${b("settings", "Name / Theme")}${b("add", "Add Node")}${b("layout", "Auto-layout")}${b("fit", "Fit")}${b("export", "Export")}${b("sync-native", "Link CPR Item")}${b("save", "Save Architecture")}</div></header><main class="neta-main">${renderGraph(a, {
@@ -60,6 +61,8 @@ export class ArchitectureEditor extends NETApplication {
     if (!form || !n) return;
     const f = Object.fromEntries(new FormData(form));
     for (const key of ["name", "icon", "color", "notes", "gmNotes"]) n[key] = f[key];
+    n.alwaysVisible = form.elements.alwaysVisible.checked;
+    n.bypassAllowed = form.elements.bypassAllowed.checked;
     n.type = f.customType || f.type;
     n.depth = f.depth === "" ? null : Number(f.depth);
     n.challenge.action = f.action;
@@ -186,6 +189,13 @@ export class ArchitectureEditor extends NETApplication {
         await this.runtime.adapter.syncNative(a);
         ui.notifications.info("Native CPR Item linked. Native floors preserved; extended graph remains in private storage.");
         return;
+      case "ice-config": {
+        const attachment = n.attachments.find(a => a.id === target.dataset.id);
+        const result = await iceConfigDialog(attachment.iceConfig);
+        if (!result) return;
+        attachment.iceConfig = result.config;
+        break;
+      }
       case "attachment-open":
         {
           const doc = await this.runtime.adapter.resolve(n.attachments.find(x => x.id === target.dataset.id).uuid);

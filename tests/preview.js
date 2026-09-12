@@ -227,6 +227,18 @@ let session = {
   event: null
 };
 let library = [architecture];
+if (params.has("combat")) {
+  session.runner.profile.hp = 35;
+  session.runner.profile.maxHp = 40;
+  session.iceStates = { sentinel: { name: "Sentinel / Custom ICE", nodeId: "password", rezzed: true, visible: true, defeated: false,
+    stats: { per: 6, spd: 7, atk: 9, def: 5 }, rez: { value: 22, max: 30 },
+    target: { kind: "runner", name: "Ghost" }, programs: [{ id: "attack", name: "ICE Attack", system: {} }] } };
+  session.runnerTargetId = "sentinel";
+  session.netCombat = [{ id: "attack", source: { kind: "ice", id: "sentinel", name: "Sentinel / Custom ICE" }, target: { kind: "runner", name: "Ghost" }, kind: "atk", total: 16, status: "rolled" },
+    { id: "damage", source: { kind: "runner", name: "Ghost" }, target: { kind: "ice", id: "sentinel", name: "Sentinel / Custom ICE" }, kind: "damage", total: 8, status: "rolled" }];
+  architecture.nodes.at(-1).alwaysVisible = true;
+  session.bypassNodeIds = ["password"];
+}
 if (mode === "loot") {
   const node = architecture.nodes.find(n => n.id === "password");
   node.attachments = [
@@ -297,7 +309,8 @@ const runtime = {
 runtime.view = projectedView();
 runtime.runApp = new NetrunApp(runtime);
 runtime.runApp.selected = mode === "gm" ? "control" : "password";
-const app = mode === "manager" ? new ArchitectureManager(runtime) : mode === "editor" ? new ArchitectureEditor(runtime, architecture) : runtime.runApp;
+const { NetCombatApp } = await import("../scripts/apps/net-combat-app.js");
+const app = params.get("combat") === "window" ? new NetCombatApp(runtime) : mode === "manager" ? new ArchitectureManager(runtime) : mode === "editor" ? new ArchitectureEditor(runtime, architecture) : runtime.runApp;
 globalThis.preview = {
   app,
   runtime,

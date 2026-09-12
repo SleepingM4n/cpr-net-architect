@@ -155,6 +155,172 @@ const request = (s, action, nodeId, extra = {}) => ({
   nodeId,
   ...extra
 });
+
+function combatFixture() {
+  const s = session(), svc = service(s), node = s.architecture.nodes[1];
+  const actor = { uuid: s.runner.actorUuid, name: "Ghost", testUserPermission: () => true,
+    system: { derivedStats: { hp: { value: 35, max: 35 } } }, items: new Map(), receipts: [],
+    getFlag() { return this.receipts; }, async update(data) {
+      this.system.derivedStats.hp.value = data["system.derivedStats.hp.value"];
+      this.receipts = data["flags.cpr-net-architect.netDamageReceipts"];
+    } };
+  const source = { uuid: "Actor.secretIce", name: "Sentinel", type: "blackIce", documentName: "Actor",
+    system: { stats: { per: 4, spd: 6, atk: 7, def: 5, rez: { value: 15, max: 20 } } }, items: [] };
+  const program = { uuid: "Item.iceProgram", name: "ICE attack", type: "program", documentName: "Item",
+    system: { class: "blackice", atk: 3, def: 2, spd: 4, per: 5, damage: { standard: "2d6", blackIce: "3d6" } },
+    toObject() { return { name: this.name, system: structuredClone(this.system) }; } };
+  const docs = new Map([[actor.uuid, actor], [source.uuid, source], [program.uuid, program]]);
+  globalThis.fromUuid = async uuid => docs.get(uuid) ?? null;
+  svc.adapter.isIce = new CPRSystemAdapter().isIce;
+  svc.adapter.resolve = async uuid => docs.get(uuid);
+  svc.adapter.encounterRoll = async () => ({ total: 12 });
+  svc.adapter.deck = () => ({ getInstalledItems: () => [...actor.items.values()] });
+  node.attachments.push({ id: "damageProgram", uuid: program.uuid, visible: false });
+  s.currentNodeId = node.id;
+  s.discoveredNodeIds.push(node.id);
+  const send = (user, action, extra = {}) => svc.handle(user, request(s, action, node.id, extra));
+  return { s, svc, node, actor, source, program, docs, send };
+}
+
+test("distant markers reveal only their identity and current incident connections", async () => {
+  const s = session(), svc = service(s), n = s.architecture.nodes[4];
+  n.alwaysVisible = true; n.notes = "private until discovered"; n.attachments = [{ id: "secret", uuid: "Item.secret", visible: true }];
+  const view = await svc.projection(runner), marker = view.architecture.nodes.find(x => x.id === n.id);
+  assert.equal(marker.name, n.name); assert.equal(marker.remote, true);
+  assert.equal(marker.challenge, undefined); assert.equal(marker.notes, undefined); assert.deepEqual(marker.attachments, []);
+  assert.ok(!view.architecture.edges.some(e => e.to === n.id));
+  s.currentNodeId = s.architecture.nodes[3].id;
+  s.discoveredNodeIds.push(s.currentNodeId, n.id);
+  assert.ok(getVisibleSessionStateForUser(s, runner).architecture.edges.some(e => e.to === n.id));
+  s.currentNodeId = s.architecture.entryNodeId;
+  assert.ok(!getVisibleSessionStateForUser(s, runner).architecture.edges.some(e => e.to === n.id));
+  n.bypassAllowed = true;
+  n.attachments[0].iceConfig = { name: "Custom", stats: { atk: 9 }, programUuids: ["Item.attack"] };
+  const roundtrip = validateArchitecture(s.architecture).nodes.find(x => x.id === n.id);
+  assert.equal(roundtrip.alwaysVisible, true); assert.equal(roundtrip.bypassAllowed, true);
+  assert.equal(roundtrip.attachments[0].iceConfig.stats.atk, 9);
+});
+
+test("GM bypass permits travel without clearing or granting rewards and controls", async () => {
+  const s = session(), svc = service(s), node = s.architecture.nodes[1], next = s.architecture.nodes[2];
+  await assert.rejects(svc.handle(runner, request(s, "bypass", node.id)), /GM only/);
+  await svc.handle(gm, request(s, "bypass", node.id));
+  await svc.handle(runner, request(s, "move", node.id));
+  assert.equal(s.currentNodeId, node.id); assert.ok(!s.clearedNodeIds.includes(node.id));
+  await assert.rejects(svc.handle(runner, request(s, "takeItem", node.id, { attachmentId: "attachment1" })), /cleared node/);
+  await assert.rejects(svc.handle(runner, request(s, "control", node.id)), /cleared/);
+  await svc.handle(gm, request(s, "bypass", next.id));
+  await svc.handle(runner, request(s, "move", next.id));
+  assert.equal(s.currentNodeId, next.id);
+  await svc.handle(gm, request(s, "bypass", node.id));
+  await assert.rejects(svc.handle(runner, request(s, "move", node.id)), /Resolve the challenge/);
+});
+
+test("ICE snapshots copy Programs, avoid paired duplicates, and edits never change source documents", async () => {
+  const { s, svc, node, source, program, send } = combatFixture();
+  node.attachments[0].iceConfig = { name: "Custom sentinel", stats: { atk: 9, rezMax: 30 } };
+  await svc.rezNode(node);
+  assert.deepEqual(Object.keys(s.iceStates), ["attachment1"]);
+  const ice = s.iceStates.attachment1;
+  assert.equal(ice.stats.atk, 9); assert.equal(ice.rez.max, 30); assert.equal(ice.programs.length, 1);
+  ice.programs[0].system.atk = 99;
+  assert.equal(program.system.atk, 3);
+  await send(gm, "editIce", { iceId: "attachment1", config: { stats: { atk: 12, rezMax: 40 } }, rez: 36 });
+  assert.equal(source.system.stats.atk, 7); assert.equal(source.system.stats.rez.max, 20);
+  assert.equal(ice.rez.value, 36); assert.equal(ice.stats.atk, 12);
+  const before = structuredClone(ice);
+  await assert.rejects(send(gm, "editIce", { iceId: "attachment1", config: { name: "bad", stats: { atk: 99 } }, rez: 100 }), /Current REZ/);
+  assert.deepEqual(ice, before);
+  await assert.rejects(send(runner, "editIce", { iceId: "attachment1" }), /GM only/);
+  await send(gm, "ice", { attachmentId: "attachment1", operation: "derez" });
+  assert.equal(ice.rezzed, false);
+  await send(gm, "ice", { attachmentId: "attachment1", operation: "rez" });
+  assert.equal(ice.stats.atk, 12);
+});
+
+test("targeting and movement enforce visibility, co-location, edges and GM ownership", async () => {
+  const { s, svc, node, send } = combatFixture(); await svc.rezNode(node);
+  const ice = s.iceStates.attachment1;
+  ice.visible = false;
+  await assert.rejects(send(runner, "targetIce", { iceId: "attachment1" }), /not visible/);
+  ice.visible = true;
+  await send(runner, "targetIce", { iceId: "attachment1" });
+  await send(gm, "iceTarget", { iceId: "attachment1" });
+  assert.equal(ice.target.kind, "runner");
+  await assert.rejects(send(observer, "targetIce", { iceId: "attachment1" }), /Observers/);
+  await assert.rejects(send(runner, "moveIce", { iceId: "attachment1", destinationId: s.architecture.entryNodeId }), /GM only/);
+  await assert.rejects(send(gm, "moveIce", { iceId: "attachment1", destinationId: s.architecture.nodes[4].id }), /connected edge/);
+  await send(gm, "moveIce", { iceId: "attachment1", destinationId: s.architecture.entryNodeId });
+  assert.equal(ice.target, null); assert.equal(s.runnerTargetId, null);
+  await assert.rejects(send(runner, "targetIce", { iceId: "attachment1" }), /same node/);
+  assert.equal(Object.keys(s.iceStates).length, 1);
+  await svc.rezNode(node);
+  assert.equal(ice.nodeId, s.architecture.entryNodeId);
+});
+
+test("combat grants roll on the player client and bind the server-selected target", async () => {
+  const { s, svc, node, send } = combatFixture(); await svc.rezNode(node);
+  await send(runner, "targetIce", { iceId: "attachment1" });
+  svc.adapter.rollInterface = () => { throw new Error("GM must not roll"); };
+  const { rollGrant } = await send(runner, "runnerCombatRoll", { operation: "zapDamage", combatTarget: { kind: "runner" } });
+  assert.equal(rollGrant.ability, "zap"); assert.equal(rollGrant.executionType, "damage");
+  assert.equal(rollGrant.targetName, "Sentinel");
+  game.messages = new Map([["combat", { author: runner, getFlag: () => ({ token: rollGrant.token, actorUuid: s.runner.actorUuid, total: 6 }) }]]);
+  await svc.handle(runner, { action: "completeRoll", sessionId: s.id, token: rollGrant.token, messageId: "combat" });
+  const entry = s.netCombat[0];
+  assert.equal(entry.target.kind, "ice"); assert.equal(entry.target.id, "attachment1"); assert.equal(entry.total, 6);
+  assert.equal(s.iceStates.attachment1.rez.value, 20);
+  await assert.rejects(send(runner, "applyNetDamage", { rollId: entry.id, amount: 6 }), /GM only/);
+  await send(gm, "applyNetDamage", { rollId: entry.id, amount: 4 });
+  assert.equal(s.iceStates.attachment1.rez.value, 16);
+  await assert.rejects(send(gm, "applyNetDamage", { rollId: entry.id, amount: 4 }), /unapplied/);
+});
+
+test("GM-confirmed damage updates native HP/Program REZ once, never original ICE", async () => {
+  const { s, svc, node, actor, source, send } = combatFixture(); await svc.rezNode(node);
+  await send(gm, "iceTarget", { iceId: "attachment1" });
+  await send(gm, "encounterRoll", { iceId: "attachment1", operation: "atk" });
+  await send(gm, "confirmHit", { rollId: s.netCombat[0].id, result: "miss" });
+  assert.equal(s.netCombat[0].status, "miss"); assert.equal(actor.system.derivedStats.hp.value, 35);
+  await send(gm, "encounterRoll", { iceId: "attachment1", operation: "damage" });
+  const entry = s.netCombat.at(-1);
+  await send(gm, "applyNetDamage", { rollId: entry.id, amount: 8 });
+  assert.equal(actor.system.derivedStats.hp.value, 27);
+  entry.status = "rolled"; // persisted-document receipt survives a failed session save
+  await send(gm, "applyNetDamage", { rollId: entry.id, amount: 8 });
+  assert.equal(actor.system.derivedStats.hp.value, 27);
+  const program = { id: "defender", name: "Shield", system: { isRezzed: true, rez: { value: 5 } }, getFlag: () => [],
+    async update(data) { this.system.rez.value = data["system.rez.value"]; this.system.isRezzed = data["system.isRezzed"]; } };
+  actor.items.set(program.id, program);
+  await send(gm, "iceTarget", { iceId: "attachment1", programId: program.id });
+  await send(gm, "encounterRoll", { iceId: "attachment1", operation: "damage" });
+  await send(gm, "applyNetDamage", { rollId: s.netCombat.at(-1).id, amount: 8 });
+  assert.equal(program.system.rez.value, 0); assert.equal(program.system.isRezzed, false);
+  assert.equal(source.system.stats.rez.value, 15);
+});
+
+test("player combat projection exposes usable targets without private stats, Programs or hidden logs", async () => {
+  const { s, svc, node } = combatFixture(); await svc.rezNode(node);
+  svc.netCombat.record("atk", { kind: "ice", id: "attachment1", name: "Sentinel" }, { kind: "runner", name: "Ghost" }, { total: 17 });
+  svc.netCombat.record("atk", { kind: "ice", id: "secret", name: "Hidden attacker" }, null, { total: 20 }, true);
+  const view = await svc.projection(runner);
+  assert.equal(view.iceStates.attachment1.visible, true); assert.equal(view.iceStates.attachment1.rez.max, 20);
+  assert.equal(view.iceStates.attachment1.stats, undefined); assert.equal(view.iceStates.attachment1.programs, undefined);
+  const text = JSON.stringify(view);
+  assert.ok(!text.includes("Actor.secretIce")); assert.ok(!text.includes("Item.iceProgram")); assert.ok(!text.includes("Hidden attacker"));
+  assert.equal(view.netCombat.length, 1);
+});
+
+test("legacy ICE restores snapshots and missing documents do not block restoring the run", async () => {
+  const { s, svc, node, docs } = combatFixture();
+  s.iceStates.attachment1 = { nodeId: node.id, visible: true, rezzed: false, defeated: true };
+  await svc.netCombat.hydrateLegacy();
+  assert.equal(s.iceStates.attachment1.stats.atk, 7); assert.equal(s.iceStates.attachment1.defeated, true);
+  s.iceStates.attachment1 = { nodeId: node.id, visible: true, rezzed: true };
+  docs.delete("Actor.secretIce");
+  await svc.netCombat.hydrateLegacy();
+  assert.equal(s.iceStates.attachment1.rezzed, false); assert.ok(s.iceStates.attachment1.unavailable);
+});
 async function playerAttempt(svc, node, total) {
   const s = svc.session;
   const { rollGrant } = await svc.handle(runner, request(s, "attempt", node.id));

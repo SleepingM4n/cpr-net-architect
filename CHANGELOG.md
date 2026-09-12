@@ -1,3 +1,14 @@
+# 0.4.0
+
+- Always-visible node markers with connections limited to the runner's current incident edges.
+- Template and live GM bypass toggles: pass through without cracking or unlocking rewards/controls.
+- NET Combat popup with mutual targeting, native player/ICE rolls and GM-confirmed hits and final damage.
+- Encounter-only Black ICE stats, current/max REZ and copied Programs; original Actors and Items unchanged.
+- GM-controlled ICE movement along graph connections, persisted positions and target clearing.
+- Apply confirmed damage to encounter REZ or real runner HP/Program REZ, with duplicate-application protection.
+- Preserve player chat rolls, Item pickup, inline journals and optional HTTP compatibility.
+- Restore legacy ICE safely; extend automated tests and manual hosted acceptance checks.
+
 # 0.3.0
 
 - Add a GM-only world HTTP compatibility toggle, off by default and requiring all clients to reload.

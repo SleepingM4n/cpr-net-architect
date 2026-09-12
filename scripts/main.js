@@ -53,6 +53,7 @@ Hooks.once("ready", async () => {
       if (state && runtime.view?.id === state.id && state.revision < runtime.view.revision) return;
       const newSession = state && runtime.view?.id !== state.id;
       runtime.view = state;
+      if (runtime.combatApp?.rendered) runtime.combatApp.render(false);
       if (newSession) {
         runtime.locallyClosed = false;
         runtime.runApp.selected = null;

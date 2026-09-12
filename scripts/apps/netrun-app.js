@@ -1,3 +1,4 @@
+import { NetCombatApp } from "./net-combat-app.js";
 import { ID, escapeHTML as e, setting, assert, log, optionalDocument } from "../constants.js";
 import { renderGraph } from "../graph/graph-renderer.js";
 import { GraphInteractions } from "../graph/graph-interactions.js";
@@ -33,16 +34,19 @@ export class NetrunApp extends NETApplication {
     const n = a.nodes.find(n => n.id === this.selected);
     let panel = "<p>Select a node to inspect it.</p>";
     if (n) {
+      const pairedActor = gm && (await Promise.all((n.attachments ?? []).map(at => optionalDocument(at.uuid))))
+        .some(doc => doc?.documentName === "Actor" && this.runtime.adapter.isIce(doc));
       const attachments = await Promise.all((n.attachments ?? []).map(async at => {
         const doc = gm ? await optionalDocument(at.uuid) : null;
         const name = gm ? doc?.name ?? "Missing Document" : at.name;
         const type = doc?.documentName ?? at.documentType;
+        const encounterControl = gm && this.runtime.adapter.isIce(doc) && (!pairedActor || doc.documentName === "Actor");
         const taken = at.taken || s.claimedAttachments?.[`${n.id}:${at.id}`];
         const pickup = type === "Item" && (gm || runner) ? b("takeItem", taken ? "Taken" : "Take Item", `data-id="${at.id}" ${taken || s.currentNodeId !== n.id || !s.clearedNodeIds.includes(n.id) ? "disabled" : ""}`) : "";
-        return `<li><span>${e(name)}</span>${pickup}${b("open-attachment", ["JournalEntry", "JournalEntryPage"].includes(type) ? "Read" : "Open", `data-id="${at.id}"`)}${gm && this.runtime.adapter.isIce(doc) ? `<div class="neta-toolbar">${["rez", "derez", "reveal", "hide", "defeat"].map(op => b("ice", op.toUpperCase(), `data-id="${at.id}" data-operation="${op}"`)).join("")}${(doc.type === "demon" ? ["interface", "combatNumber"] : ["atk", "damage"]).map(stat => b("iceRoll", stat.toUpperCase(), `data-id="${at.id}" data-stat="${stat}"`)).join("")}</div>` : ""}</li>`;
+        return `<li><span>${e(name)}</span>${pickup}${b("open-attachment", ["JournalEntry", "JournalEntryPage"].includes(type) ? "Read" : "Open", `data-id="${at.id}"`)}${encounterControl ? `<div class="neta-toolbar">${["rez", "derez", "reveal", "hide", "defeat"].map(op => b("ice", op.toUpperCase(), `data-id="${at.id}" data-operation="${op}"`)).join("")}${(doc.type === "demon" ? ["interface", "combatNumber"] : ["atk", "damage"]).map(stat => b("iceRoll", stat.toUpperCase(), `data-id="${at.id}" data-stat="${stat}"`)).join("")}</div>` : ""}</li>`;
       }));
       const interactive = gm || runner;
-      panel = `<h3>${n.unknown ? "ENCRYPTED FRONTIER" : e(n.name)}</h3><p>${n.unknown ? "Resolve this signal to discover its contents." : e(n.notes)}</p>${interactive ? `<div class="neta-toolbar">${b("attempt", gm ? "ROLL FOR NETRUNNER" : n.unknown ? "ATTEMPT ACCESS" : n.challenge?.enabled ? `${n.challenge.action.toUpperCase()} — DV ${n.challenge.dv}` : "RESOLVE NODE")}${b("move", "MOVE HERE")}</div>` : "<p>OBSERVER · READ ONLY</p>"}${attachments.length ? `<details open><summary>Attachments</summary><ul>${attachments.join("")}</ul></details>` : ""}${interactive ? (n.controls ?? []).map(c => b("control", c.label, `data-id="${c.id}"`)).join("") : ""}${gm ? `<h4>GM CONTROLS</h4><p class="neta-gm-notes">${e(n.gmNotes)}</p><div class="neta-toolbar">${[["reveal", "Reveal"], ["hide", "Hide"], ["revealBranch", "Reveal Branch"], ["revealAll", "Reveal All"], ["moveGM", "Move Runner Here"], ["clear", "Mark Cleared"], ["compromise", "Mark Compromised"]].map(([op, label]) => b(op, label)).join("")}</div>` : ""}`;
+      panel = `${s.bypassNodeIds?.includes(n.id) && !s.clearedNodeIds.includes(n.id) ? "<p>BYPASS ALLOWED · NOT CRACKED</p>" : ""}<h3>${n.unknown ? "ENCRYPTED FRONTIER" : e(n.name)}</h3><p>${n.unknown ? "Resolve this signal to discover its contents." : n.remote ? "Visible signal: move nearby to inspect and attempt access." : e(n.notes)}</p>${interactive ? `<div class="neta-toolbar">${b("attempt", gm ? "ROLL FOR NETRUNNER" : n.unknown ? "ATTEMPT ACCESS" : n.challenge?.enabled ? `${n.challenge.action.toUpperCase()} — DV ${n.challenge.dv}` : "RESOLVE NODE")}${b("move", "MOVE HERE")}</div>` : "<p>OBSERVER · READ ONLY</p>"}${attachments.length ? `<details open><summary>Attachments</summary><ul>${attachments.join("")}</ul></details>` : ""}${interactive ? (n.controls ?? []).map(c => b("control", c.label, `data-id="${c.id}"`)).join("") : ""}${gm ? `<h4>GM CONTROLS</h4><p class="neta-gm-notes">${e(n.gmNotes)}</p><div class="neta-toolbar">${[["bypass", s.bypassNodeIds?.includes(n.id) ? "Disable Bypass" : "Allow Bypass"], ["reveal", "Reveal"], ["hide", "Hide"], ["revealBranch", "Reveal Branch"], ["revealAll", "Reveal All"], ["moveGM", "Move Runner Here"], ["clear", "Mark Cleared"], ["compromise", "Mark Compromised"]].map(([op, label]) => b(op, label)).join("")}</div>` : ""}`;
     }
     if (n && this.reading) {
       const attachment = n.attachments?.find(a => a.id === this.reading);
@@ -50,14 +54,16 @@ export class NetrunApp extends NETApplication {
     }
     const ice = Object.values(s.iceStates ?? {}).filter(x => x.rezzed && (gm || x.visible !== false)).map(x => `<p class="neta-ice-alert">▲ ${e(x.name)} / REZZED</p>`).join("");
     return {
-      body: `<div class="neta-shell neta-theme-${a.theme}"><header class="neta-header"><div><span class="neta-kicker">${gm ? "GM CONTROL" : runner ? "NEURAL LINK" : "OBSERVER FEED"} / ${s.status === "login" ? "SECURE CONNECTION" : "JACKED IN"}</span><h2>${e(a.name)}</h2></div><div class="neta-toolbar">${b("sidebar", this.collapsed ? "Show Sidebar" : "Collapse Sidebar")}${b("fit", "Fit")}${gm ? b("broadcast", "SHOW TO PLAYERS") + b("reset", "RESET NETRUN") : ""}${gm || runner ? b("end", gm ? "END NETRUN" : "JACK OUT") : b("stop", "STOP VIEWING")}</div></header>${s.status === "login" ? loginView(s) : `<main class="neta-main"><aside class="neta-run-sidebar" ${this.collapsed ? "hidden" : ""}>${sidebar}${ice}</aside>${renderGraph(a, {
+      body: `<div class="neta-shell neta-theme-${a.theme}"><header class="neta-header"><div><span class="neta-kicker">${gm ? "GM CONTROL" : runner ? "NEURAL LINK" : "OBSERVER FEED"} / ${s.status === "login" ? "SECURE CONNECTION" : "JACKED IN"}</span><h2>${e(a.name)}</h2></div><div class="neta-toolbar">${b("sidebar", this.collapsed ? "Show Sidebar" : "Collapse Sidebar")}${b("fit", "Fit")}${b("net-combat", "NET COMBAT")}${gm ? b("broadcast", "SHOW TO PLAYERS") + b("reset", "RESET NETRUN") : ""}${gm || runner ? b("end", gm ? "END NETRUN" : "JACK OUT") : b("stop", "STOP VIEWING")}</div></header>${s.status === "login" ? loginView(s) : `<main class="neta-main"><aside class="neta-run-sidebar" ${this.collapsed ? "hidden" : ""}>${sidebar}${ice}</aside>${renderGraph(a, {
         selected: this.selected,
         current: s.currentNodeId,
         previous: s.previousNodeId,
         cleared: s.clearedNodeIds,
         failed: s.failedNodeIds,
         compromised: s.compromisedNodeIds,
-        avatar: p.img
+        avatar: p.img,
+        bypassed: s.bypassNodeIds,
+        iceStates: s.iceStates
       })}<aside class="neta-inspector">${panel}</aside></main>`}<div class="neta-feedback" role="status" aria-live="polite">${e(s.event?.text ?? "")}</div><footer>CONNECTION: STABLE · ${e(a.nodes.find(n => n.id === s.currentNodeId)?.name ?? "AWAITING JACK IN")} · ${gm ? "FULL ARCHITECTURE" : runner ? "DISCOVERY FILTER ACTIVE" : "READ ONLY"}</footer></div>`
     };
   }
@@ -117,10 +123,10 @@ export class NetrunApp extends NETApplication {
     const grant = reply.rollGrant;
     try {
       const actor = await this.runtime.adapter.resolve(grant.actorUuid);
-      const options = { playerGrant: grant };
+      const options = { playerGrant: grant, targetName: grant.targetName, targetKind: grant.targetKind };
       const result = grant.programId
         ? await this.runtime.adapter.program(actor, grant.deckId, grant.programId, grant.programAction, options)
-        : await this.runtime.adapter.rollInterface(actor, { ability: grant.ability, deckId: grant.deckId, ...options });
+        : await this.runtime.adapter.rollInterface(actor, { ability: grant.ability, executionType: grant.executionType, deckId: grant.deckId, ...options });
       return await this.runtime.socket.request({ action: result ? "completeRoll" : "cancelRoll", sessionId: s.id, token: grant.token, messageId: result?.messageId });
     } catch (error) {
       await this.runtime.socket.request({ action: "cancelRoll", sessionId: s.id, token: grant.token }).catch(() => {});
@@ -129,6 +135,11 @@ export class NetrunApp extends NETApplication {
   }
   async action(action, target) {
     const s = this.runtime.view;
+    if (action === "net-combat") {
+      this.runtime.combatApp ??= new NetCombatApp(this.runtime);
+      this.runtime.combatApp.render(true);
+      return;
+    }
     if (action === "stop") {
       await this.close();
       return;

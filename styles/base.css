@@ -2,3 +2,10 @@
 .neta-journal-reader { margin-top: 16px; padding: 12px; border: 1px solid var(--neta-accent, #d93649); overflow-wrap: anywhere; }
 .neta-journal-reader img { max-width: 100%; height: auto; }
 .neta-journal-reader table { width: 100%; }
+.neta-combat-layout { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:20px; overflow:auto; }
+.neta-combat-layout section { min-width:0; }
+.neta-combat-card,.neta-combat-record { border:1px solid #435267; padding:12px; margin-bottom:12px; overflow-wrap:anywhere; }
+.neta-combat-card label { display:block; margin-top:10px; }
+.neta-combat-card select { width:100%; }
+.neta-ice-marker { position:absolute; left:0; top:100%; background:#38101b; color:#ff98a5; padding:3px 6px; max-width:200px; font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.neta-ice-marker ~ .neta-ice-marker { display:none; }

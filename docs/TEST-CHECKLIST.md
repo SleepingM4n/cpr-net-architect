@@ -33,7 +33,7 @@ Target **Foundry 12.343 + cyberpunk-red-core v0.92.4**. These boxes are intentio
 - [ ] GM can roll for the Netrunner, reveal/hide, reveal branch/all, clear/compromise, and move the runner through GM controls. Hiding the current node is rejected until the runner moves.
 - [ ] Original Actor portrait appears on the current NET node. Physical Token UUID, Scene, position, elevation, and status remain unchanged by NET movement.
 - [ ] Cyberdeck selector and installed Programs match the native Actor. REZ/DEREZ persists on the real Program, including when changed in the native sheet. Native Program rolls work with effects; deleted/uninstalled Programs give an error.
-- [ ] Black ICE REZ/DEREZ/reveal/hide/defeat state is virtual. ATK uses native `createStatRoll`; DAMAGE uses the attached world Program. Missing Program must not silently generate guessed damage.
+- [ ] Black ICE REZ/DEREZ/reveal/hide/defeat state is virtual. ATK uses native CPRProgramStatRoll with encounter stats; DAMAGE uses a copied Program. Missing Program must not silently generate guessed damage.
 - [ ] Demon Interface and Combat Number invoke native stat rolls. Test a configured advanced action Macro only if approved by the GM.
 - [ ] Existing Combat round/turn/runner initiative appears. GM budget/reset works; runner turn advancement resets used actions. The native combat tracker remains in control.
 - [ ] RED and 2077 themes work. Reduced motion disables login/glitch/flow movement, visual-effects setting works, sounds are opt-in, and scale/sidebar controls remain usable.
@@ -84,3 +84,17 @@ The browser harness is started with `node tests/serve-preview.mjs`, then opened 
 - [ ] Verify observers cannot mutate runs and hidden nodes/cards do not appear in their projection.
 - [ ] Toggle off, reload everyone on HTTPS, and confirm default transport works again. Unreloaded peers should fail with a mode-mismatch message.
 - [ ] Test GM reconnect/authority handoff and public-key rotation.
+
+## NET combat acceptance (0.4.0)
+
+- [ ] Enable Always visible on a distant node. Runner sees the marker but no notes/DV/attachments. Approach and leave its connections; only current incident connections appear.
+- [ ] Toggle bypass as GM during a run. Travel through without clearing. Item pickup and controls remain unavailable until separately cracked.
+- [ ] Attach Actor plus damage Program; entering creates one ICE encounter. Configure and edit stats/REZ/Programs; source Actor and Items stay unchanged.
+- [ ] Player targets visible same-node ICE and rolls Zap and Program ATK/DAMAGE locally into chat. Hidden/distant/defeated targets are rejected.
+- [ ] GM sets ICE target to runner and to a rezzed Program. Roll native ATK/DEF/SPD/PER/DAMAGE. Confirm hit/miss; no HP changes until GM applies final damage.
+- [ ] Damage uses the correct standard/Black ICE formula, including custom formula modifiers. Apply final mitigated damage to ICE REZ, runner HP and Program REZ. Repeated apply does not subtract twice.
+- [ ] GM moves ICE along an edge. Positions synchronize, target clears, and hidden destination stays private. Revisit its original node: no duplicate or resurrection.
+- [ ] Reconnect/re-elect GM: encounter position, edits, REZ and combat records persist. Reset restores template ICE/bypass; real runner damage is not undone.
+- [ ] Observer sees shared combat only, with no mutation controls or private ICE stats/Programs. Repeat with HTTP compatibility enabled.
+
+Development validation: 49 automated tests, syntax/import/manifest checks and mocked browser GM/player combat UI. Live hosted multiplayer checks above remain to be completed on a Foundry server.

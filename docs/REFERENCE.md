@@ -57,7 +57,7 @@ Use **one connected browser tab per Foundry user account**. A reload replaces th
 
 The Programs panel reads installed Programs from the chosen native Cyberdeck. REZ/DEREZ updates real Program Items; native update hooks refresh the panel. Player attacks/defense/damage open locally and use the Cyberdeck's CPR roll pipeline and ordinary chat. Black ICE Program activation uses `setRezzed()` to avoid CPR's physical Scene Token creation.
 
-Black ICE and Demon encounter activation is stored in the session, separate from architecture templates and source Actors. Native Actor attacks use `createStatRoll`; native Black ICE damage requires an attached world Program so the system cannot silently fall back to an unrelated damage formula. Demon controls use native Interface/Combat Number checks. Configure a Macro control on the same node for an advanced Demon action.
+Black ICE and Demon encounter activation is stored in the session, separate from architecture templates and source Actors. Black ICE combat rolls use CPRProgramStatRoll/CPRDamageRoll with encounter snapshot stats and copied Programs. Use NET COMBAT for mutual targeting, GM hit decisions, final damage, encounter edits and connected ICE movement. A Program must supply the damage formula. Demon controls use native Interface/Combat Number checks. Configure a Macro control on the same node for an advanced Demon action.
 
 The optional NET Action counter is bookkeeping: the GM supplies the budget and may reset it; the counter resets when the Netrunner's combat turn begins. It does not enforce action economy, and damage-button rolls may need a manual counter adjustment. No unverified rank formula or separate initiative system is introduced.
 
@@ -102,7 +102,7 @@ Run `node --test tests/*.test.js` and `node tests/check.mjs` from this folder (N
 
 Read [the integration audit](CPR-INTEGRATION.md), [the manual test checklist](TEST-CHECKLIST.md), [known limitations](KNOWN-LIMITATIONS.md), and [the delivery report](DELIVERY-REPORT.md) before campaign use.
 
-This release intentionally defers automatic Pathfinder reveal breadth, opposed Interface/ICE combat resolution, unsafe Jack Out damage, automated ICE pursuit/turns, damage application to virtual ICE HP, automatic NET Action derivation, and arbitrary graph-to-native-floor round trips. The GM adjudicates those rules using CPR's existing tools. One active NETRUN per world is supported. UI text is English; settings are localized through `lang/en.json`.
+This release intentionally defers automatic Pathfinder reveal breadth, opposed Interface/ICE combat resolution, unsafe Jack Out damage, automated ICE pursuit/turns, automatic NET Action derivation, and arbitrary graph-to-native-floor round trips. The GM adjudicates those rules using CPR's existing tools. One active NETRUN per world is supported. UI text is English; settings are localized through `lang/en.json`.
 
 ## Items and journals (0.2.1)
 
@@ -125,3 +125,7 @@ HTTPS remains the default and recommended connection. If your host only provides
 Compatibility mode uses bundled **TweetNaCl.js 1.0.3** (Curve25519/XSalsa20-Poly1305) for encrypted, authenticated module messages. No CDN or plaintext fallback is used. GM authority, discovery filtering, replay rejection, and private card delivery stay in place. Browser `crypto.getRandomValues` remains required; the mode does not depend on `crypto.subtle` or `crypto.randomUUID`.
 
 **HTTP is still less secure:** an interceptor can modify the JavaScript or public-key documents loaded over HTTP, defeating application-level encryption. Foundry login, ordinary chat, and other traffic outside the module transport are not protected by this option. Use HTTPS when available. If you see a transport-mode mismatch after changing the toggle, reload all clients. No server proxy changes are needed to use this option.
+
+## Node visibility and combat (0.4.0)
+
+See the [simple combat manual](QUICK-START.md#5-programs-ice-and-net-combat) for distant node markers, GM bypass, targeting, encounter-only edits, copied Programs and movement. Player distant markers omit private node contents. Bypass never clears a node. Combat targets must share a node. The GM applies final damage in the combat log; source Black ICE Actors and Programs are unchanged. Resetting a run does not undo damage to the real runner sheet.
