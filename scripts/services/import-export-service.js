@@ -40,17 +40,18 @@ export function makeNode(type = "custom", x = 80, y = 80) {
     }
   };
 }
-export function makeArchitecture(name = "Untitled Architecture", theme = "red") {
+export function makeArchitecture(name = "Night City Datafort", theme = "red") {
   const entry = makeNode("access");
   return {
     module: ID,
     schemaVersion: VERSION,
     id: uid(),
-    name,
+    name: String(name ?? "").trim().slice(0, 160) || "Night City Datafort",
     theme,
     entryNodeId: entry.id,
     nodes: [entry],
     edges: [],
+    participants: [],
     metadata: {},
     createdAt: new Date().toISOString(),
     modifiedAt: new Date().toISOString()
@@ -125,6 +126,14 @@ export function validateArchitecture(input) {
     };
   });
   assert(ids.has(data.entryNodeId), "Entry node does not exist.");
+  assert(!data.participants || Array.isArray(data.participants) && data.participants.length <= 100, "Maximum 100 NPCs per architecture.");
+  const participantIds = new Set();
+  const participants = (data.participants ?? []).map(p => {
+    assert(p && validId(p.id) && !participantIds.has(p.id) && ids.has(p.nodeId) && typeof p.actorUuid === "string" && p.actorUuid.length < 300, "Invalid NPC placement.");
+    participantIds.add(p.id);
+    return { id: p.id, actorUuid: p.actorUuid, nodeId: p.nodeId, visible: p.visible !== false,
+      name: str(p.name, 160) || "Linked Actor", kind: p.kind === "demon" ? "demon" : "netrunner" };
+  });
   const edgeIds = new Set(),
     pairs = new Set();
   const edges = data.edges.map(e => {
@@ -144,11 +153,12 @@ export function validateArchitecture(input) {
     module: ID,
     schemaVersion: VERSION,
     id: data.id,
-    name: str(data.name, 160) || "Untitled Architecture",
+    name: str(data.name, 160).trim() || "Night City Datafort",
     theme: data.theme === "2077" ? "2077" : "red",
     entryNodeId: data.entryNodeId,
     nodes,
     edges,
+    participants,
     metadata: {
       sourceUuid: str(data.metadata?.sourceUuid, 300),
       sourceFloors: Array.isArray(data.metadata?.sourceFloors) ? data.metadata.sourceFloors.slice(0, 200).map(f => ({
@@ -171,6 +181,7 @@ export function duplicateArchitecture(data) {
   result.id = uid();
   result.name += " (Copy)";
   result.entryNodeId = map.get(result.entryNodeId);
+  result.participants = result.participants.map(p => ({ ...p, id: uid(), nodeId: map.get(p.nodeId) }));
   for (const n of result.nodes) {
     n.id = map.get(n.id);
     n.attachments.forEach(a => a.id = uid());

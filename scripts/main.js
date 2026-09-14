@@ -53,7 +53,7 @@ Hooks.once("ready", async () => {
       if (state && runtime.view?.id === state.id && state.revision < runtime.view.revision) return;
       const newSession = state && runtime.view?.id !== state.id;
       runtime.view = state;
-      if (runtime.combatApp?.rendered) runtime.combatApp.render(false);
+      if (runtime.combatApp?.rendered) runtime.combatApp.render(false, { focus: false });
       if (newSession) {
         runtime.locallyClosed = false;
         runtime.runApp.selected = null;
@@ -61,13 +61,13 @@ Hooks.once("ready", async () => {
       }
       if (!state) {
         runtime.manualOpen = false;
-        if (runtime.runApp.rendered) runtime.runApp.render(false);
+        if (runtime.runApp.rendered) runtime.runApp.render(false, { focus: false });
         return;
       }
       const auto = state.role === "gm" ? setting("openGM") : state.role === "runner" ? setting("openRunner") : setting("openObserver") && setting("promptObservers");
       if (open && auto) runtime.locallyClosed = false;
       if (!runtime.locallyClosed && (runtime.runApp.rendered || auto || runtime.manualOpen)) {
-        const renderOptions = {};
+        const renderOptions = { focus: !!runtime.manualOpen || !!newSession };
         const position = setting("rememberPosition") ? localStorage.getItem(`${ID}.position.${game.world.id}.${game.user.id}`) : null;
         if (position && !runtime.runApp.rendered) {
           try {

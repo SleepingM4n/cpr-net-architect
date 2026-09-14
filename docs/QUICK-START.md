@@ -1,6 +1,8 @@
 # NET Architect — simple manual
 
-For Foundry VTT **12.343**, **Cyberpunk RED – CORE v0.92.4**, and NET Architect **0.4.0**.
+For **0.5.0**, read [NPC/Demon placement, naming and new controls](LOCAL-TEST-0.5.0.md). The existing workflow below is retained.
+
+For Foundry VTT **12.343**, **Cyberpunk RED – CORE v0.92.4**, and NET Architect **0.5.0**.
 
 ## 1. Prepare the runner and NET points
 

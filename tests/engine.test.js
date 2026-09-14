@@ -156,6 +156,61 @@ const request = (s, action, nodeId, extra = {}) => ({
   ...extra
 });
 
+test("architecture names use the default only when blank and NPC placements survive import and duplication", () => {
+  const a = makeArchitecture("   ");
+  assert.equal(a.name, "Night City Datafort");
+  a.name = "Private Datafort";
+  a.participants = [{ id: "npc1", actorUuid: "Actor.npc", nodeId: a.entryNodeId, visible: false, name: "Rival", kind: "netrunner" }];
+  const normalized = validateArchitecture(a), copy = duplicateArchitecture(a);
+  assert.equal(normalized.name, "Private Datafort");
+  assert.deepEqual(normalized.participants, a.participants);
+  assert.equal(copy.participants[0].nodeId, copy.entryNodeId);
+  assert.notEqual(copy.participants[0].id, "npc1");
+  a.participants[0].nodeId = "absent";
+  assert.throws(() => validateArchitecture(a), /NPC placement/);
+});
+
+test("GM imports multiple NPCs and Demons and moves each independently without player discovery or source updates", async () => {
+  const s = session(), svc = service(s), actor = await fromUuid(s.runner.actorUuid);
+  const npc = { documentName: "Actor", type: "mook", uuid: "Actor.npc", name: "Rival" };
+  const demon = { documentName: "Actor", type: "demon", uuid: "Actor.demon", name: "Imp" };
+  globalThis.fromUuid = async uuid => [actor, npc, demon].find(a => a.uuid === uuid);
+  const add = a => svc.handle(gm, request(s, "npc-add", s.currentNodeId, { actorUuid: a.uuid }));
+  await add(npc); await add(npc); await add(demon);
+  assert.equal(s.participants.length, 3);
+  assert.equal(new Set(s.participants.map(p => p.id)).size, 3);
+  assert.equal(s.participants[2].kind, "demon");
+  const p = s.participants[0], destinationId = s.architecture.nodes[1].id;
+  await svc.handle(gm, request(s, "npc-move", null, { participantId: p.id, destinationId }));
+  assert.equal(p.nodeId, destinationId);
+  assert.equal(s.participants[1].nodeId, s.currentNodeId);
+  assert.deepEqual(s.discoveredNodeIds, [s.currentNodeId]);
+  assert.equal(npc.nodeId, undefined);
+  await assert.rejects(svc.handle(gm, request(s, "npc-move", null, { participantId: p.id, destinationId: s.architecture.nodes[4].id })), /connected edge/);
+  await assert.rejects(svc.handle(runner, request(s, "npc-move", null, { participantId: p.id, destinationId })), /GM only/);
+  await assert.rejects(svc.handle(observer, request(s, "npc-add", s.currentNodeId, { actorUuid: npc.uuid })), /Observers/);
+  const view = await svc.projection(runner);
+  assert.equal(view.participants.length, 2);
+  assert.ok(!JSON.stringify(view.participants).includes("Actor."));
+  await svc.handle(gm, request(s, "npc-visibility", null, { participantId: s.participants[2].id }));
+  assert.equal((await svc.projection(runner)).participants.length, 1);
+  await svc.handle(gm, request(s, "npc-remove", null, { participantId: p.id }));
+  assert.equal(s.participants.length, 2);
+});
+
+test("NPC reset uses saved placements and unavailable source Actors remain hidden", async () => {
+  const s = session(), svc = service(s);
+  s.architecture.participants = [{ id: "missing", actorUuid: "Actor.missing", nodeId: s.currentNodeId, visible: true }];
+  s.participants = [{ id: "temporary" }];
+  await svc.handle(gm, request(s, "reset"));
+  assert.equal(s.participants.length, 1); assert.equal(s.participants[0].id, "missing");
+  assert.equal(s.participants[0].visible, false); assert.equal(s.participants[0].unavailable, true);
+  assert.deepEqual((await svc.projection(runner)).participants, []);
+  await svc.handle(gm, request(s, "renameRun", null, { name: "   " }));
+  assert.equal(s.architecture.name, "Night City Datafort");
+  await assert.rejects(svc.handle(runner, request(s, "renameRun", null, { name: "wrong" })), /GM only/);
+});
+
 function combatFixture() {
   const s = session(), svc = service(s), node = s.architecture.nodes[1];
   const actor = { uuid: s.runner.actorUuid, name: "Ghost", testUserPermission: () => true,

@@ -1,3 +1,12 @@
+# 0.5.0
+
+- Rename the login datafort heading with the architecture name; blank names default to Night City Datafort.
+- Add multiple NPC Netrunner and Demon Actor placements to templates or live runs, with independent connected movement and GM visibility controls.
+- Persist placements through reconnects and support import/export, duplication and reset.
+- Wrap node names to two lines.
+- Preserve the front window during synchronized NETRUN/NET Combat updates and preserve panel scrolling.
+- Publish the module ZIP, installation manifest, checksum and updated manual on GitHub.
+
 # 0.4.0
 
 - Always-visible node markers with connections limited to the runner's current incident edges.

@@ -227,6 +227,16 @@ let session = {
   event: null
 };
 let library = [architecture];
+if (params.has("npcs")) {
+  const actors = [{ uuid: "Actor.rival", name: "Rival Netrunner", type: "mook", documentName: "Actor" },
+    { uuid: "Actor.imp", name: "Security Demon", type: "demon", documentName: "Actor" }];
+  game.actors = actors;
+  globalThis.fromUuid = async uuid => actors.find(a => a.uuid === uuid) ?? null;
+  session.participants = actors.map((a, i) => ({ id: `npc${i}`, actorUuid: a.uuid, name: a.name, kind: a.type === "demon" ? "demon" : "netrunner", nodeId: "password", visible: true }));
+  architecture.participants = clone(session.participants);
+  architecture.name = "Arasaka Research Datafort";
+  architecture.nodes.find(n => n.id === "password").name = "Employee Authentication Gateway";
+}
 if (params.has("combat")) {
   session.runner.profile.hp = 35;
   session.runner.profile.maxHp = 40;
@@ -298,6 +308,8 @@ const runtime = {
         session.currentNodeId = req.nodeId;
       }
       if (req.action === "takeItem") architecture.nodes.find(n => n.id === req.nodeId).attachments.find(a => a.id === req.attachmentId).taken = true;
+      if (req.action === "npc-add") session.participants.push({ ...req, kind: game.actors.find(a => a.uuid === req.actorUuid)?.type === "demon" ? "demon" : "netrunner" });
+      if (req.action === "npc-move") session.participants.find(p => p.id === req.participantId).nodeId = req.destinationId;
       session.revision++;
       runtime.view = projectedView();
       runtime.runApp.render();

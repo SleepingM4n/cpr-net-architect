@@ -4,6 +4,22 @@ import { CPRSystemAdapter } from "../scripts/services/cpr-system-adapter.js";
 globalThis.Application = class { constructor() {} static get defaultOptions() { return {}; } };
 const { NetrunApp } = await import("../scripts/apps/netrun-app.js");
 const { NetCombatApp } = await import("../scripts/apps/net-combat-app.js");
+const { loginView } = await import("../scripts/apps/login-app.js");
+const { participantPanel } = await import("../scripts/apps/net-participants.js");
+
+test("login title follows the architecture name, falls back when blank and escapes markup", () => {
+  const state = { role: "runner", runner: { profile: {} }, architecture: { name: "<Datafort>" } };
+  assert.ok(loginView(state).includes("<h1>&lt;Datafort&gt;</h1>"));
+  state.architecture.name = " ";
+  assert.ok(loginView(state).includes("<h1>Night City Datafort</h1>"));
+});
+test("NPC panel exposes GM movement and Actor access but no player controls", () => {
+  const a = { nodes: [{ id: "a", name: "One" }, { id: "b", name: "Two" }], edges: [{ from: "a", to: "b" }] };
+  const participants = [{ id: "npc", name: "Imp", kind: "demon", nodeId: "a", visible: true }];
+  assert.ok(participantPanel(a, participants, true).includes("Move NPC"));
+  const player = participantPanel(a, participants, false);
+  assert.ok(player.includes("Imp")); assert.ok(!player.includes("data-action"));
+});
 
 test("combat UI offers player targeting and rolls while GM confirmation controls remain exclusive", async () => {
   const view = { status: "active", role: "runner", architecture: { name: "NET", theme: "red", nodes: [{ id: "node", name: "Node", attachments: [] }], edges: [] },

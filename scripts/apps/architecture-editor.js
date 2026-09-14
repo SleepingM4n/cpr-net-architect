@@ -1,3 +1,4 @@
+import { participantPanel, participantAction } from "./net-participants.js";
 import { iceConfigDialog } from "./ice-config.js";
 import { ID, TYPES, ABILITIES, CONTROL_TYPES, clone, uid, escapeHTML as e, requireGM, assert, log, optionalDocument } from "../constants.js";
 import { makeNode, validateArchitecture, downloadArchitecture } from "../services/import-export-service.js";
@@ -32,7 +33,7 @@ export class ArchitectureEditor extends NETApplication {
       body: `<div class="neta-shell neta-theme-${a.theme}"><header class="neta-header"><div><span class="neta-kicker">NET ARCHITECT / EDIT MODE ${this.dirty ? "/ UNSAVED" : ""}</span><h2>${e(a.name)}</h2></div><div class="neta-toolbar">${b("settings", "Name / Theme")}${b("add", "Add Node")}${b("layout", "Auto-layout")}${b("fit", "Fit")}${b("export", "Export")}${b("sync-native", "Link CPR Item")}${b("save", "Save Architecture")}</div></header><main class="neta-main">${renderGraph(a, {
         selected: this.selected,
         edit: true
-      })}<aside class="neta-inspector">${inspector}</aside></main><footer>EDIT MODE · UUID-linked content · Save before starting a NETRUN</footer></div>`
+      })}<aside class="neta-inspector">${inspector}${participantPanel(a, a.participants, true, true)}</aside></main><footer>EDIT MODE · UUID-linked content · Save before starting a NETRUN</footer></div>`
     };
   }
   activateListeners(html) {
@@ -91,6 +92,7 @@ export class ArchitectureEditor extends NETApplication {
     this.readNode();
     const a = this.architecture,
       n = a.nodes.find(n => n.id === this.selected);
+    if (await participantAction(this, action, target, true)) return;
     switch (action) {
       case "save":
         this.architecture = await this.runtime.store.save(a);
@@ -102,7 +104,7 @@ export class ArchitectureEditor extends NETApplication {
         {
           const f = await formDialog("Architecture", `${field("name", "Name", a.name)}<label>Theme<select name="theme">${options([["red", "Cyberpunk RED"], ["2077", "Neon 2077"]], a.theme)}</select></label>`);
           if (f) {
-            a.name = f.name;
+            a.name = f.name.trim() || "Night City Datafort";
             a.theme = f.theme;
           }
           break;
@@ -137,7 +139,8 @@ export class ArchitectureEditor extends NETApplication {
           title: "Delete Node",
           content: `<p>Delete ${e(n.name)} and its connections?</p>`
         }))) return;
-        a.nodes = a.nodes.filter(x => x.id !== n.id);
+        a.participants = (a.participants ?? []).filter(p => p.nodeId !== n.id);
+          a.nodes = a.nodes.filter(x => x.id !== n.id);
         a.edges = a.edges.filter(x => x.from !== n.id && x.to !== n.id);
         if (a.entryNodeId === n.id) a.entryNodeId = a.nodes[0].id;
         this.selected = a.entryNodeId;

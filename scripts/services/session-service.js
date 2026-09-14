@@ -3,6 +3,7 @@ import { authority } from "./socket-service.js";
 import { canRun, canView, getVisibleSessionStateForUser } from "./permission-service.js";
 import { neighbors } from "../graph/graph-layout.js";
 import { NetCombatService } from "./net-combat-service.js";
+import { NetParticipantService } from "./net-participant-service.js";
 const add = (array, id) => {
   if (!array.includes(id)) array.push(id);
 };
@@ -16,6 +17,7 @@ export class SessionService {
     });
     this.session = null;
     this.netCombat = new NetCombatService(this);
+    this.participants = new NetParticipantService(this);
     this.queue = Promise.resolve();
   }
   isAuthority() {
@@ -73,6 +75,7 @@ export class SessionService {
       compromisedNodeIds: [],
       bypassNodeIds: architecture.nodes.filter(n => n.bypassAllowed).map(n => n.id),
       iceStates: {},
+      participants: await this.participants.build(architecture),
       actions: {
         max: Number(actions) || 0,
         used: 0
@@ -253,6 +256,7 @@ export class SessionService {
       s.compromisedNodeIds = [];
       s.bypassNodeIds = s.architecture.nodes.filter(n => n.bypassAllowed).map(n => n.id);
       s.iceStates = {};
+      s.participants = await this.participants.build(s.architecture);
       s.netCombat = [];
       s.runnerTargetId = null;
       s.actions.used = 0;
@@ -270,6 +274,7 @@ export class SessionService {
       await this.commit();
       return;
     }
+    if (await this.participants.handle(user, req)) return;
     assert(s.status === "active", "Press JACK IN first.");
     const combatReply = await this.netCombat.handle(user, req, actor, completedResult);
     if (combatReply) return combatReply === true ? undefined : combatReply;

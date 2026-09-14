@@ -9,3 +9,9 @@
 .neta-combat-card select { width:100%; }
 .neta-ice-marker { position:absolute; left:0; top:100%; background:#38101b; color:#ff98a5; padding:3px 6px; max-width:200px; font-size:10px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .neta-ice-marker ~ .neta-ice-marker { display:none; }
+
+/* Two readable node-name lines; participant badges remain outside the card. */
+.neta-shell .neta-node strong { white-space:normal; display:-webkit-box; -webkit-box-orient:vertical; -webkit-line-clamp:2; line-clamp:2; line-height:1.2; max-height:2.4em; overflow:hidden; overflow-wrap:anywhere; flex-shrink:0; }
+.neta-npc-markers { position:absolute; left:205px; top:0; display:flex; flex-direction:column; gap:3px; max-width:145px; pointer-events:none; }
+.neta-npc-markers span { padding:3px 5px; background:#102d36; color:#87ede0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:10px; }
+.neta-login h1 { overflow-wrap:anywhere; }

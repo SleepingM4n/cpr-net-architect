@@ -13,6 +13,10 @@ globalThis.Application = class {
   constructor(options) {
     this.options = options;
   }
+  render(force, options = {}) {
+    this.rendered = true;
+    if (options.focus ?? force) ui.activeWindow = this;
+  }
 };
 globalThis.foundry = {
   utils: {
@@ -87,6 +91,10 @@ test("module initializes under v12-shaped API and publishes controls/API without
       render() {}
     }
   };
+  const { SocketService } = await import("../scripts/services/socket-service.js");
+  const initialize = SocketService.prototype.initialize;
+  let onState;
+  SocketService.prototype.initialize = async function (request, state) { onState = state; return initialize.call(this, request, state); };
   await import("../scripts/main.js");
   await hooks.get("init")[0]();
   await hooks.get("ready")[0]();
@@ -101,4 +109,17 @@ test("module initializes under v12-shaped API and publishes controls/API without
   assert.equal(controls[0].tools[0].name, "cpr-net-architect");
   assert.ok(settings.has("allowObservers"));
   assert.ok(settings.has("reducedMotion"));
+  globalThis.localStorage = { getItem: () => null };
+  const state = { id: "focus-run", revision: 1, role: "gm", architecture: { name: "NET" } };
+  await onState(state, true);
+  const runApp = ui.activeWindow;
+  assert.ok(runApp?.runtime);
+  const { NetCombatApp } = await import("../scripts/apps/net-combat-app.js");
+  const combat = runApp.runtime.combatApp = new NetCombatApp(runApp.runtime);
+  combat.render(true);
+  await onState({ ...state, revision: 2 }, false);
+  assert.equal(ui.activeWindow, combat, "Combat stays in front after synchronized actions");
+  runApp.render(true);
+  await onState({ ...state, revision: 3 }, false);
+  assert.equal(ui.activeWindow, runApp, "Main window stays in front after synchronized actions");
 });

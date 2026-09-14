@@ -64,6 +64,9 @@ export function getVisibleSessionStateForUser(session, user) {
     compromisedNodeIds: session.compromisedNodeIds.filter(id => seen.has(id)),
     bypassNodeIds: (session.bypassNodeIds ?? []).filter(id => visible.has(id)),
     iceStates: {},
+    participants: session.status === "active" ? (session.participants ?? []).filter(p => p.visible && seen.has(p.nodeId)).map(p => ({
+      id: p.id, name: p.name, kind: p.kind, nodeId: p.nodeId, img: p.img
+    })) : [],
     actions: clone(session.actions),
     combat: clone(session.combat),
     event: session.event ? {

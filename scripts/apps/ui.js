@@ -46,6 +46,7 @@ export class NETApplication extends Application {
       width: 1120,
       height: 760,
       resizable: true,
+      scrollY: [".neta-inspector", ".neta-run-sidebar", ".neta-combat-layout"],
       template: `modules/${ID}/templates/application.hbs`
     });
   }

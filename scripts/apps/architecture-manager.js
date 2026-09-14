@@ -37,7 +37,7 @@ export class ArchitectureManager extends NETApplication {
     switch (action) {
       case "new":
         {
-          const f = await formDialog("New Architecture", field("name", "Name", "Kiroshi Warehouse"));
+          const f = await formDialog("New Architecture", field("name", "Name (blank = Night City Datafort)", ""));
           if (f) {
             const a = await store.save(makeArchitecture(f.name, setting("defaultTheme")));
             this.runtime.openEditor(a);

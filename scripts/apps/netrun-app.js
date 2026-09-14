@@ -1,3 +1,4 @@
+import { participantPanel, participantAction } from "./net-participants.js";
 import { NetCombatApp } from "./net-combat-app.js";
 import { ID, escapeHTML as e, setting, assert, log, optionalDocument } from "../constants.js";
 import { renderGraph } from "../graph/graph-renderer.js";
@@ -54,7 +55,7 @@ export class NetrunApp extends NETApplication {
     }
     const ice = Object.values(s.iceStates ?? {}).filter(x => x.rezzed && (gm || x.visible !== false)).map(x => `<p class="neta-ice-alert">▲ ${e(x.name)} / REZZED</p>`).join("");
     return {
-      body: `<div class="neta-shell neta-theme-${a.theme}"><header class="neta-header"><div><span class="neta-kicker">${gm ? "GM CONTROL" : runner ? "NEURAL LINK" : "OBSERVER FEED"} / ${s.status === "login" ? "SECURE CONNECTION" : "JACKED IN"}</span><h2>${e(a.name)}</h2></div><div class="neta-toolbar">${b("sidebar", this.collapsed ? "Show Sidebar" : "Collapse Sidebar")}${b("fit", "Fit")}${b("net-combat", "NET COMBAT")}${gm ? b("broadcast", "SHOW TO PLAYERS") + b("reset", "RESET NETRUN") : ""}${gm || runner ? b("end", gm ? "END NETRUN" : "JACK OUT") : b("stop", "STOP VIEWING")}</div></header>${s.status === "login" ? loginView(s) : `<main class="neta-main"><aside class="neta-run-sidebar" ${this.collapsed ? "hidden" : ""}>${sidebar}${ice}</aside>${renderGraph(a, {
+      body: `<div class="neta-shell neta-theme-${a.theme}"><header class="neta-header"><div><span class="neta-kicker">${gm ? "GM CONTROL" : runner ? "NEURAL LINK" : "OBSERVER FEED"} / ${s.status === "login" ? "SECURE CONNECTION" : "JACKED IN"}</span><h2>${e(a.name)}</h2></div><div class="neta-toolbar">${b("sidebar", this.collapsed ? "Show Sidebar" : "Collapse Sidebar")}${b("fit", "Fit")}${b("net-combat", "NET COMBAT")}${gm ? b("renameRun", "Rename Architecture") + b("broadcast", "SHOW TO PLAYERS") + b("reset", "RESET NETRUN") : ""}${gm || runner ? b("end", gm ? "END NETRUN" : "JACK OUT") : b("stop", "STOP VIEWING")}</div></header>${s.status === "login" ? loginView(s) : `<main class="neta-main"><aside class="neta-run-sidebar" ${this.collapsed ? "hidden" : ""}>${sidebar}${ice}</aside>${renderGraph(a, {
         selected: this.selected,
         current: s.currentNodeId,
         previous: s.previousNodeId,
@@ -63,8 +64,9 @@ export class NetrunApp extends NETApplication {
         compromised: s.compromisedNodeIds,
         avatar: p.img,
         bypassed: s.bypassNodeIds,
-        iceStates: s.iceStates
-      })}<aside class="neta-inspector">${panel}</aside></main>`}<div class="neta-feedback" role="status" aria-live="polite">${e(s.event?.text ?? "")}</div><footer>CONNECTION: STABLE · ${e(a.nodes.find(n => n.id === s.currentNodeId)?.name ?? "AWAITING JACK IN")} · ${gm ? "FULL ARCHITECTURE" : runner ? "DISCOVERY FILTER ACTIVE" : "READ ONLY"}</footer></div>`
+        iceStates: s.iceStates,
+        participants: s.participants
+      })}<aside class="neta-inspector">${panel}${participantPanel(a, s.participants, gm)}</aside></main>`}<div class="neta-feedback" role="status" aria-live="polite">${e(s.event?.text ?? "")}</div><footer>CONNECTION: STABLE · ${e(a.nodes.find(n => n.id === s.currentNodeId)?.name ?? "AWAITING JACK IN")} · ${gm ? "FULL ARCHITECTURE" : runner ? "DISCOVERY FILTER ACTIVE" : "READ ONLY"}</footer></div>`
     };
   }
   activateListeners(html) {
@@ -135,6 +137,12 @@ export class NetrunApp extends NETApplication {
   }
   async action(action, target) {
     const s = this.runtime.view;
+    if (await participantAction(this, action, target)) return;
+    if (action === "renameRun") {
+      const f = await formDialog("Rename current Architecture", field("name", "Name (blank = Night City Datafort)", s.architecture.name));
+      if (f) await this.send("renameRun", { name: f.name });
+      return;
+    }
     if (action === "net-combat") {
       this.runtime.combatApp ??= new NetCombatApp(this.runtime);
       this.runtime.combatApp.render(true);

@@ -1,5 +1,7 @@
 # NET Architect
 
+**New in 0.5.0:** configurable login names, multiple NPC Netrunner/Demon placements and movement, two-line node names, and a window-focus fix. See the [new controls and testing guide](docs/LOCAL-TEST-0.5.0.md).
+
 Interactive **Cyberpunk RED NET Architectures** for **Foundry VTT 12.343** and **Cyberpunk RED – CORE v0.92.4**. Explore a branching network in a synchronized popup while the Netrunner's physical Token stays on the tactical Scene.
 
 [Download the latest release](https://github.com/SleepingM4n/cpr-net-architect/releases/latest) · [Simple manual](docs/QUICK-START.md) · [Detailed reference](docs/REFERENCE.md) · [Report an issue](https://github.com/SleepingM4n/cpr-net-architect/issues)
@@ -51,11 +53,11 @@ Enable **NET Architect** in your CPR world's **Manage Modules**, then reload eve
 
 ## Compatibility and scope
 
-Version **0.4.0** targets the exact versions above. No mandatory extra module or build step is required. One active NETRUN per world is supported. An active GM is required to authorize actions. The module's NET Action counter is bookkeeping; it does not itself enforce an action allowance.
+Version **0.5.0** targets the exact versions above. No mandatory extra module or build step is required. One active NETRUN per world is supported. An active GM is required to authorize actions. The module's NET Action counter is bookkeeping; it does not itself enforce an action allowance.
 
 Player rolls use CPR and ordinary Foundry client dice trust. NET Combat applies the final damage entered by the GM to encounter REZ or the runner’s real HP/Program REZ. Hit decisions, reductions, special effects, action economy, Pathfinder breadth, ICE pursuit and unsafe Jack Out remain GM-adjudicated. See [known limitations](docs/KNOWN-LIMITATIONS.md).
 
-This build passed **49 automated tests** and browser UI checks using mocked Foundry services. The author supplied the demonstration video; the development environment has not independently validated a live hosted multiplayer session. See the [hosted checklist](docs/TEST-CHECKLIST.md).
+This build passed **54 automated tests** and browser UI checks using mocked Foundry services. The author supplied the demonstration video; the development environment has not independently validated a live hosted multiplayer session. See the [hosted checklist](docs/TEST-CHECKLIST.md).
 
 ## Development
 
