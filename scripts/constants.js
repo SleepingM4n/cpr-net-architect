@@ -12,6 +12,12 @@ export const CONTROL_TYPES = {
   Macro: ["execute"]
 };
 export const clone = data => structuredClone(data);
+export function sameData(a, b) {
+  if (a === b) return true;
+  if (!a || !b || typeof a !== "object" || typeof b !== "object" || Array.isArray(a) !== Array.isArray(b)) return false;
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every(k => Object.hasOwn(b, k) && sameData(a[k], b[k]));
+}
 export const uid = () => {
   if (globalThis.crypto?.randomUUID) return crypto.randomUUID();
   // randomUUID is secure-context-only; getRandomValues also works on HTTP.

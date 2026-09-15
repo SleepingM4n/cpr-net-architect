@@ -21,7 +21,7 @@ The module labels this allowance **NET Actions**. Its counter is bookkeeping and
 2. Create a network, or select **Import JSON** and load `examples/kiroshi-warehouse.json`.
 3. Add and connect nodes. Select a node to edit its name, notes, Interface action, DV, and discovery/failure settings.
 4. Drag native Actors, Items, or journals onto nodes as attachments. The example's references must be connected to Documents in your own world.
-5. Save the Architecture. Use **Export** if you want a portable JSON backup.
+5. Save the Architecture. Wait for **Architecture saved and verified**. If saving fails, your edits remain open: restore the connection or resolve the displayed error, then press **Save Architecture** again. Edits made during a pending save remain unsaved and need another save. Use **Export** if you want a portable JSON backup.
 
 ## 3. Start and explore
 

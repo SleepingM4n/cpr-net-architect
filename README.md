@@ -1,5 +1,7 @@
 # NET Architect
 
+**New in 0.5.1:** fixes intermittent architecture saving, verifies stored changes, and preserves edits during slow or failed saves. See the [save-fix testing guide](docs/LOCAL-TEST-0.5.1.md).
+
 **New in 0.5.0:** configurable login names, multiple NPC Netrunner/Demon placements and movement, two-line node names, and a window-focus fix. See the [new controls and testing guide](docs/LOCAL-TEST-0.5.0.md).
 
 Interactive **Cyberpunk RED NET Architectures** for **Foundry VTT 12.343** and **Cyberpunk RED – CORE v0.92.4**. Explore a branching network in a synchronized popup while the Netrunner's physical Token stays on the tactical Scene.

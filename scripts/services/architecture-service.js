@@ -1,4 +1,4 @@
-import { ID, PACK, clone, requireGM, assert } from "../constants.js";
+import { ID, PACK, clone, requireGM, assert, sameData } from "../constants.js";
 import { validateArchitecture } from "./import-export-service.js";
 export class ArchitectureService {
   async initialize() {
@@ -43,11 +43,25 @@ export class ArchitectureService {
     assert(a, "Architecture was deleted or does not exist.");
     return a;
   }
-  async save(data) {
+  save(data) {
+    const snapshot = clone(data);
+    const task = (this.saveQueue ?? Promise.resolve()).then(() => this.saveSnapshot(snapshot));
+    this.saveQueue = task.catch(() => {});
+    return task;
+  }
+  async saveSnapshot(data) {
     this.assertPrivate();
+    assert(!this.pack.locked, "NET Architect private storage is locked. Unlock its compendium and try Save again.");
     const a = validateArchitecture(data);
-    const doc = this.docs.find(d => d.getFlag(ID, "architecture")?.id === a.id);
-    if (doc) await doc.setFlag(ID, "architecture", a);else this.docs.push(await JournalEntry.create({
+    // The array can outlive Foundry's compendium Document cache. Never update its stale instances.
+    await this.refresh();
+    let doc = this.docs.find(d => d.getFlag(ID, "architecture")?.id === a.id);
+    this.assertPrivate();
+    if (doc) {
+      doc = await this.pack.getDocument(doc.id);
+      assert(doc, "Architecture storage entry is unavailable. Your editor changes are still open; try Save again.");
+      await doc.setFlag(ID, "architecture", a);
+    } else doc = await JournalEntry.create({
       name: `Architecture ${a.id}`,
       ownership: {
         default: 0
@@ -59,8 +73,14 @@ export class ArchitectureService {
       }
     }, {
       pack: PACK
-    }));
-    return a;
+    });
+    assert(doc, "Foundry did not create the architecture storage entry.");
+    // Query persisted data, rather than trusting a local object or a no-op update result.
+    const [saved] = await this.pack.getDocuments({ _id__in: [doc.id] });
+    assert(saved && sameData(saved.getFlag(ID, "architecture"), a), "Foundry did not confirm the saved architecture. Keep the editor open and try Save again.");
+    this.docs = this.docs.filter(d => d.id !== saved.id);
+    this.docs.push(saved);
+    return clone(saved.getFlag(ID, "architecture"));
   }
   async delete(id) {
     this.assertPrivate();

@@ -1,3 +1,13 @@
+# 0.5.1
+
+- Reacquire current compendium documents before saving, avoiding stale storage references after long editing sessions.
+- Read back the stored architecture and verify its contents before reporting success.
+- Serialize saves to prevent overlapping writes and duplicate entries from the same client.
+- Preserve edits made while a save is pending, and keep them marked unsaved.
+- Keep failed saves open with a persistent error and allow retrying Save Architecture.
+- Read node fields from the displayed node's ID to avoid applying them to another node during selection changes.
+- Add seven save regression tests; all 61 automated tests pass. Hosted Foundry testing is still required.
+
 # 0.5.0
 
 - Rename the login datafort heading with the architecture name; blank names default to Night City Datafort.
