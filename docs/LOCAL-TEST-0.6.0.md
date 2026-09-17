@@ -18,7 +18,7 @@ Version 0.6.0 is available through Foundry's module updater and on GitHub. Expor
 - The GM uses **Switch Netrunner** in the Architecture or NET Combat window. Movement, reveal/hide controls, budget changes, runner rolls and new ICE targets use the selected runner, whose name appears above the map.
 - To target another player with ICE, select that Netrunner, choose the character or a rezzed Program, then press **Set ICE Target**. They must occupy the same node. Existing targets and rolled damage stay bound to that character after switching the GM view.
 - Multiple players can have pending roll dialogs at once. Rolls appear in chat as usual; the GM still confirms hits and final damage.
-- **JACK OUT** affects only that player and returns them to the entry/login position. Their slot stays reserved for reconnecting and they can Jack In again. The GM's **END NETRUN** ends the group run; **RESET NETRUN** resets all runners and encounters.
+- **JACK OUT** (updated in 0.6.1) removes that player from the roster and frees their slot. They become a read-only observer. The GM must use **Add Player Netrunner** again before they can Jack In; re-admission starts them at the entry with fresh individual progress. If everyone leaves, the read-only feed remains available until the GM adds a runner or ends the run. The GM's **END NETRUN** ends the group run; **RESET NETRUN** resets all runners and encounters.
 - Observers remain read-only and follow the first runner's discovery feed.
 - Simultaneous changes can produce the existing “State changed” notice; retry from the updated view. Authorized pending rolls remain valid across unrelated player updates.
 

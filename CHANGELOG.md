@@ -1,3 +1,11 @@
+# 0.6.1
+
+- Remove a player Netrunner from the roster on Jack Out, freeing their slot immediately.
+- Keep the departed player as a read-only observer; only GM re-admission restores Jack In and runner controls.
+- Clear pending rolls, ICE targets and unresolved damage aimed at the departed runner.
+- Preserve an empty observer feed when the last runner leaves, including across reloads; the GM can add a new runner or end the run.
+- Preserve other players' positions and progress. Re-added runners start at the entry with fresh individual state.
+
 # 0.6.0
 
 - Add up to six player Netrunners to one Architecture, with unique Actors/users and ownership/positive NET Role validation for additional runners.

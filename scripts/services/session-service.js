@@ -107,7 +107,7 @@ export class SessionService {
       record.combat = game.combat ? { round: game.combat.round, turn: game.combat.turn,
         isRunnerTurn: game.combat.combatant?.actor?.uuid === actor?.uuid } : null;
     }
-    if (s.runners) Object.assign(s, clone(s.runners[s.runner.userId]));
+    if (s.runners?.[s.runner.userId]) Object.assign(s, clone(s.runners[s.runner.userId]));
   }
   async addRunner(req) {
     const s = ensureRunners(this.session);
@@ -124,6 +124,7 @@ export class SessionService {
       discoveredNodeIds: [], failedNodeIds: [], actions: { max: s.actions.max, used: 0 },
       combat: null, runnerTargetId: null, event: null
     };
+    if (Object.keys(s.runners).length === 1) Object.assign(s, clone(s.runners[user.id]));
     s.observers = s.observers.filter(id => id !== user.id);
     await this.commit(true);
   }
@@ -223,7 +224,7 @@ export class SessionService {
     if (s?.runners && !["sync", "chat"].includes(req?.action)) {
       assert(canRun(s, user), "Observers cannot change a NETRUN.");
       const id = user.isGM ? req.runnerId ?? s.gmRunnerIds?.[user.id] ?? Object.keys(s.runners)[0] : user.id;
-      assert(s.runners[id], "Netrunner is no longer in this Architecture.");
+      assert(s.runners[id] || user.isGM && !Object.keys(s.runners).length && ["addRunner", "end"].includes(req.action), "Netrunner is no longer in this Architecture. Add a player Netrunner first.");
       selectRunner(s, id);
     }
     try { return await this.handleSelected(user, req); }
@@ -260,11 +261,27 @@ export class SessionService {
       if (gm || !s.runners) await this.end();
       else {
         this.pendingRoll = null;
-        s.status = "login";
-        s.currentNodeId = s.architecture.entryNodeId;
-        s.previousNodeId = null;
-        s.runnerTargetId = null;
+        delete s.runners[user.id];
+        add(s.observers, user.id);
         for (const ice of Object.values(s.iceStates)) if (ice.target?.runnerId === user.id) ice.target = null;
+        // A departed player's unresolved damage must not hit a replacement Actor on re-admission.
+        for (const entry of s.netCombat ?? []) if (entry.target?.runnerId === user.id && entry.status !== "applied") {
+          entry.status = "cancelled";
+          entry.target = null;
+        }
+        for (const [gmId, id] of Object.entries(s.gmRunnerIds ?? {})) if (id === user.id) delete s.gmRunnerIds[gmId];
+        const next = Object.values(s.runners)[0];
+        if (next) Object.assign(s, clone(next));
+        else {
+          // Keep an observer feed with no controlling player until the GM admits someone.
+          s.status = "idle";
+          s.runner = { userId: null, actorUuid: null, profile: { name: "No Netrunners connected", img: "", rank: 0, deckName: "", deckId: null, decks: [], programs: [] } };
+          s.override = false;
+          s.runnerTargetId = null;
+          s.actions = { max: s.actions.max, used: 0 };
+          s.combat = null;
+          s.event = null;
+        }
         await this.commit();
       }
       return;

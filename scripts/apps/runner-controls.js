@@ -6,7 +6,7 @@ export function runnerControls(s) {
   const gm = s.role === "gm";
   const roster = gm ? Object.values(s.runners ?? {}).map(r => ({ userId: r.runner.userId,
     name: r.runner.profile.name, status: r.status })) : s.playerRunners ?? [];
-  return `<div class="neta-runner-controls"><span>NETRUNNERS ${roster.length || 1} / ${MAX_RUNNERS} · ${roster.map(r => `${e(r.name)} (${r.status === "active" ? "connected" : "awaiting Jack In"})`).join(" · ")}</span>${gm ? `<div class="neta-toolbar"><strong>Selected: ${e(s.runner.profile.name)}</strong>${b("chooseRunner", "Switch Netrunner")}${b("addRunner", "Add Player Netrunner", roster.length >= MAX_RUNNERS ? "disabled" : "")}</div>` : ""}</div>`;
+  return `<div class="neta-runner-controls"><span>NETRUNNERS ${s.runners || s.playerRunners ? roster.length : 1} / ${MAX_RUNNERS} · ${roster.map(r => `${e(r.name)} (${r.status === "active" ? "connected" : "awaiting Jack In"})`).join(" · ")}</span>${gm ? `<div class="neta-toolbar"><strong>Selected: ${e(s.runner.profile.name)}</strong>${b("chooseRunner", "Switch Netrunner")}${b("addRunner", "Add Player Netrunner", roster.length >= MAX_RUNNERS ? "disabled" : "")}</div>` : ""}</div>`;
 }
 export async function runnerAction(app, action) {
   if (!["chooseRunner", "addRunner"].includes(action)) return false;

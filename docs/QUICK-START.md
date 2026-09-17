@@ -1,5 +1,7 @@
 # NET Architect — simple manual
 
+**0.6.1 Jack Out:** leaving removes your Netrunner from the roster and frees the slot. You can keep watching as an observer, but the GM must add you again to restore Jack In.
+
 For **0.6.0**, start with one runner, then use **Add Player Netrunner** in the live view for up to six players total. Each added Actor must have a positive NET Role rank and be owned by its chosen player. Use **Switch Netrunner** for GM controls. See the [multi-player guide](LOCAL-TEST-0.6.0.md).
 
 For **0.5.0**, read [NPC/Demon placement, naming and new controls](LOCAL-TEST-0.5.0.md). The existing workflow below is retained.

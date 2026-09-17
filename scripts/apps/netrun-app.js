@@ -167,7 +167,7 @@ export class NetrunApp extends NETApplication {
     if (action === "end") {
       if (setting("confirmJackOut") && !(await Dialog.confirm({
         title: "JACK OUT?",
-        content: "<p>The NET session will end for your character.</p>",
+        content: s.role === "gm" ? "<p>End the NETRUN for everyone?</p>" : "<p>Your Netrunner will be removed from this run. You can watch as an observer, but the GM must add you again before you can Jack In.</p>",
         yes: () => true,
         no: () => false
       }))) return;

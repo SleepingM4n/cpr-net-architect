@@ -1,5 +1,7 @@
 # NET Architect
 
+**New in 0.6.1:** Jack Out removes the player from the runner roster and frees their slot. They become a read-only observer until the GM adds them again. See the [Jack Out guide](docs/LOCAL-TEST-0.6.1.md).
+
 **New in 0.6.0:** up to six player Netrunners in one Architecture, each with independent movement, discovery, Programs and rolls. Use **Add Player Netrunner** and **Switch Netrunner** in the live view. See the [multi-player guide](docs/LOCAL-TEST-0.6.0.md).
 
 **New in 0.5.1:** fixes intermittent architecture saving, verifies stored changes, and preserves edits during slow or failed saves. See the [save-fix testing guide](docs/LOCAL-TEST-0.5.1.md).

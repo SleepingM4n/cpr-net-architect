@@ -60,7 +60,10 @@ test("players Jack In and move independently; forged runner IDs cannot control s
  assert.ok(!JSON.stringify(p1).includes("GM SECRET")); assert.equal(p0.runners,undefined);
  assert.equal(p0.playerRunners.find(r=>r.userId==="p1").nodeId,null);
  await f.send(f.players[1],"end");
- assert.equal(s.runners.p0.status,"active");assert.equal(s.runners.p1.status,"login");assert.equal(s.runners.p1.currentNodeId,f.a.entryNodeId);
+ assert.equal(s.runners.p0.status,"active");assert.equal(s.runners.p1,undefined);
+ assert.equal((await f.service.projection(f.players[1])).role,"observer");
+ await assert.rejects(f.send(f.players[1],"jackIn"),/Observers/);
+ await f.add(1);
  await f.send(f.players[1],"jackIn"); assert.equal(s.runners.p1.status,"active");
 });
 
@@ -114,4 +117,33 @@ test("moving one runner preserves ICE targeting another runner; GM end closes al
  assert.equal(s.iceStates.ice.target.runnerId,"p0");
  await f.send(f.gm,"end");assert.equal(f.service.session,null);
  for(const p of f.players.slice(0,2))assert.equal(f.deliveries.filter(d=>d.id===p.id).at(-1).state,null);
+});
+
+
+test("last runner leaves an empty read-only run that survives reload and GM re-admission",async()=>{
+ const f=await fixture();await f.send(f.players[0],"jackIn");
+ const grant=await f.send(f.players[0],"attempt",{nodeId:f.a.nodes[1].id});
+ await f.send(f.players[0],"end");
+ assert.equal(Object.keys(f.service.session.runners).length,0);
+ assert.equal(f.service.pendingRolls.size,0);
+ const view=await f.service.projection(f.players[0]);assert.equal(view.role,"observer");assert.equal(view.playerRunners.length,0);
+ for(const action of ["jackIn","move","attempt","end","completeRoll"]) await assert.rejects(f.send(f.players[0],action,{token:grant.rollGrant.token}),/Observers/);
+ await f.service.restore();assert.equal(Object.keys(f.service.session.runners).length,0);
+ await f.add(0);assert.equal(f.service.session.runners.p0.status,"login");
+ assert.equal((await f.service.projection(f.players[0])).role,"runner");
+ await assert.rejects(f.send(f.players[0],"completeRoll",{token:grant.rollGrant.token}),/matching/);
+ await f.send(f.players[0],"jackIn");assert.equal(f.service.session.runners.p0.status,"active");
+});
+
+test("Jack Out frees a full roster slot and clears departed runner targets and pending damage",async()=>{
+ const f=await fixture();for(let i=1;i<6;i++)await f.add(i);
+ await f.send(f.players[1],"jackIn");
+ const s=f.service.session;
+ s.iceStates.ice={nodeId:f.a.entryNodeId,rezzed:true,target:{kind:"runner",runnerId:"p1",name:"Runner 1"}};
+ s.netCombat=[{id:"damage",kind:"damage",status:"rolled",target:{kind:"runner",runnerId:"p1",name:"Runner 1"},total:5}];
+ s.gmRunnerIds={gm:"p1"};
+ await f.send(f.players[1],"end");
+ assert.equal(s.iceStates.ice.target,null);assert.equal(s.netCombat[0].target,null);assert.equal(s.netCombat[0].status,"cancelled");
+ assert.equal(s.gmRunnerIds.gm,undefined);assert.equal(Object.keys(s.runners).length,5);
+ await f.add(6);assert.equal(Object.keys(s.runners).length,6);
 });

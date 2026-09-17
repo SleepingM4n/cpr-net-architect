@@ -2,7 +2,7 @@
   "id": "cpr-net-architect",
   "title": "NET Architect",
   "description": "Interactive, synchronized Cyberpunk RED NET Architectures with private discovery and virtual NET movement.",
-  "version": "0.6.0",
+  "version": "0.6.1",
   "authors": [
     {
       "name": "NET Architect contributors"
@@ -47,5 +47,5 @@
   "readme": "https://github.com/SleepingM4n/cpr-net-architect/blob/main/README.md",
   "bugs": "https://github.com/SleepingM4n/cpr-net-architect/issues",
   "manifest": "https://github.com/SleepingM4n/cpr-net-architect/releases/latest/download/module.json",
-  "download": "https://github.com/SleepingM4n/cpr-net-architect/releases/download/v0.6.0/cpr-net-architect-0.6.0.zip"
+  "download": "https://github.com/SleepingM4n/cpr-net-architect/releases/download/v0.6.1/cpr-net-architect-0.6.1.zip"
 }

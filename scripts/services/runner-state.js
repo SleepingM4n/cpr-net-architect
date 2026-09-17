@@ -6,7 +6,7 @@ export function runnerSnapshot(s) {
   return Object.fromEntries(fields.map(key => [key, clone(s[key] ?? null)]));
 }
 export function syncRunner(s) {
-  if (s?.runners) s.runners[s.runner.userId] = runnerSnapshot(s);
+  if (s?.runners?.[s.runner.userId]) s.runners[s.runner.userId] = runnerSnapshot(s);
 }
 export function ensureRunners(s) {
   if (s && !s.runners) {
