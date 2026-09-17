@@ -1,3 +1,4 @@
+import { runnerControls, runnerAction } from "./runner-controls.js";
 import { participantPanel, participantAction } from "./net-participants.js";
 import { ID, escapeHTML as e, optionalDocument, assert } from "../constants.js";
 import { NETApplication, button as b, field, options, formDialog } from "./ui.js";
@@ -11,7 +12,7 @@ export class NetCombatApp extends NETApplication {
   }
   async getData() {
     const s = this.runtime.view;
-    if (!s || s.status !== "active") return { body: '<div class="neta-shell neta-theme-red"><p>Jack In to an active NETRUN to use NET Combat.</p></div>' };
+    if (!s || s.status !== "active") return { body: `<div class="neta-shell neta-theme-red">${s ? runnerControls(s) : ""}<p>Jack In to an active NETRUN to use NET Combat.</p></div>` };
     const gm = s.role === "gm", interactive = gm || s.role === "runner", p = s.runner.profile;
     const current = s.architecture.nodes.find(n => n.id === s.currentNodeId)?.name ?? "Current node";
     const runnerActions = ["zap", "zapDamage", "defense", "speed"].map(op => b("runnerCombatRoll", {zap:"Zap Attack", zapDamage:"Zap Damage", defense:"Interface Defense", speed:"Speed"}[op], `data-operation="${op}"`)).join("");
@@ -32,10 +33,11 @@ export class NetCombatApp extends NETApplication {
       }
     }
     const history = [...(s.netCombat ?? [])].reverse().map(entry => `<article class="neta-combat-record"><strong>${e(entry.source?.name)} · ${e(entry.kind.toUpperCase())}: ${e(entry.total)}</strong><p>${entry.target ? `→ ${e(entry.target.name)} · ` : ""}${e(entry.status.toUpperCase())}${entry.appliedDamage != null ? ` · ${entry.appliedDamage} final damage` : ""}${entry.hidden ? " · GM ONLY" : ""}</p>${gm && entry.kind === "atk" ? b("confirmHit", "Confirm Hit", `data-id="${entry.id}" data-result="hit"`) + b("confirmHit", "Confirm Miss", `data-id="${entry.id}" data-result="miss"`) : ""}${gm && entry.kind === "damage" && entry.target && entry.status !== "applied" ? b("applyNetDamage", "Confirm / Apply Damage", `data-id="${entry.id}"`) : ""}</article>`).join("");
-    return { body: `<div class="neta-shell neta-theme-${s.architecture.theme}"><header class="neta-header"><div><span class="neta-kicker">NET COMBAT · GM CONFIRMS OUTCOMES</span><h2>${e(s.architecture.name)}</h2></div></header><main class="neta-combat-layout"><section><h3>${e(p.name)}</h3><p>${e(current)} · HP ${e(p.hp ?? "?")} / ${e(p.maxHp ?? "?")}</p><p>Target: ${e(s.iceStates[s.runnerTargetId]?.name ?? "None")}</p>${interactive ? `<div class="neta-toolbar">${runnerActions}${b("clearTarget", "Clear Target")}</div>` : "<p>OBSERVER · READ ONLY</p>"}<h4>PROGRAMS</h4>${programs}<p>Targets must occupy the same node. Roll defense, then let the GM confirm the hit. GM applies final damage after reductions and any special effects.</p><h4>COMBAT LOG</h4>${history || "<p>No combat rolls yet.</p>"}</section><section>${participantPanel(s.architecture, s.participants, gm)}<h3>ICE ENCOUNTERS</h3>${ice}${gm && deployment.length ? `<h4>UNDEPLOYED</h4>${deployment.join("")}` : ""}</section></main></div>` };
+    return { body: `<div class="neta-shell neta-theme-${s.architecture.theme}"><header class="neta-header"><div><span class="neta-kicker">NET COMBAT · GM CONFIRMS OUTCOMES</span><h2>${e(s.architecture.name)}</h2></div></header>${runnerControls(s)}<main class="neta-combat-layout"><section><h3>${e(p.name)}</h3><p>${e(current)} · HP ${e(p.hp ?? "?")} / ${e(p.maxHp ?? "?")}</p><p>Target: ${e(s.iceStates[s.runnerTargetId]?.name ?? "None")}</p>${interactive ? `<div class="neta-toolbar">${runnerActions}${b("clearTarget", "Clear Target")}</div>` : "<p>OBSERVER · READ ONLY</p>"}<h4>PROGRAMS</h4>${programs}<p>Targets must occupy the same node. Roll defense, then let the GM confirm the hit. GM applies final damage after reductions and any special effects.</p><h4>COMBAT LOG</h4>${history || "<p>No combat rolls yet.</p>"}</section><section>${participantPanel(s.architecture, s.participants, gm)}<h3>ICE ENCOUNTERS</h3>${ice}${gm && deployment.length ? `<h4>UNDEPLOYED</h4>${deployment.join("")}` : ""}</section></main></div>` };
   }
   async action(action, target) {
     const s = this.runtime.view, id = target.dataset.id;
+    if (await runnerAction(this, action)) return;
     if (await participantAction(this, action, target)) return;
     const send = (command, extra = {}) => this.runtime.runApp.send(command, extra);
     if (action === "runnerCombatRoll") return send(action, { operation: target.dataset.operation });

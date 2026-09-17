@@ -1,14 +1,16 @@
+import { runnerView } from "./runner-state.js";
 import { clone } from "../constants.js";
 import { neighbors } from "../graph/graph-layout.js";
 export function canView(session, user) {
-  return !!session && (user.isGM || user.id === session.runner.userId || session.observers.includes(user.id));
+  return !!session && (user.isGM || (session.runners ? !!session.runners[user.id] : user.id === session.runner.userId) || session.observers.includes(user.id));
 }
 export function canRun(session, user) {
-  return !!session && (user.isGM || user.id === session.runner.userId);
+  return !!session && (user.isGM || (session.runners ? !!session.runners[user.id] : user.id === session.runner.userId));
 }
 /** Pure projection. Unknown placeholders contain no type, DV, labels, links, or notes. */
 export function getVisibleSessionStateForUser(session, user) {
   if (!canView(session, user)) return null;
+  session = runnerView(session, user);
   if (user.isGM) return {
     ...clone(session),
     role: "gm"
@@ -56,6 +58,10 @@ export function getVisibleSessionStateForUser(session, user) {
       userId: session.runner.userId,
       profile: clone(session.runner.profile)
     },
+    playerRunners: Object.values(session.runners ?? {}).map(r => ({
+      userId: r.runner.userId, name: r.runner.profile.name, img: r.runner.profile.img, status: r.status,
+      nodeId: r.status === "active" && seen.has(r.currentNodeId) ? r.currentNodeId : null
+    })),
     currentNodeId: session.currentNodeId,
     previousNodeId: seen.has(session.previousNodeId) ? session.previousNodeId : null,
     discoveredNodeIds: [...seen],

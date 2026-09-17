@@ -1,3 +1,4 @@
+import { MAX_RUNNERS, ensureRunners, syncRunner, selectRunner } from "./runner-state.js";
 import { ID, uid, clone, assert, setting, requireGM, log, optionalDocument } from "../constants.js";
 import { authority } from "./socket-service.js";
 import { canRun, canView, getVisibleSessionStateForUser } from "./permission-service.js";
@@ -19,13 +20,20 @@ export class SessionService {
     this.netCombat = new NetCombatService(this);
     this.participants = new NetParticipantService(this);
     this.queue = Promise.resolve();
+    this.pendingRolls = new Map();
+  }
+  get pendingRoll() { return this.pendingRolls.get(this.session?.runner.userId); }
+  set pendingRoll(value) {
+    const id = this.session?.runner.userId;
+    if (value) this.pendingRolls.set(id, value); else this.pendingRolls.delete(id);
   }
   isAuthority() {
     return authority()?.id === game.user.id;
   }
   async restore() {
     await this.store.refresh();
-    this.session = this.store.loadSession();
+    this.session = ensureRunners(this.store.loadSession());
+    this.pendingRolls.clear();
     if (this.session) {
       await this.netCombat.hydrateLegacy();
       await this.refreshProfile();
@@ -85,18 +93,41 @@ export class SessionService {
       event: null,
       log: []
     };
+    ensureRunners(this.session);
     await this.commit(true);
   }
   async refreshProfile() {
     if (!this.session) return;
-    const actor = await optionalDocument(this.session.runner.actorUuid);
-    if (actor) this.session.runner.profile = this.adapter.profile(actor, this.session.runner.profile.deckId);
-    this.session.combat = game.combat ? {
-      round: game.combat.round,
-      turn: game.combat.turn,
-      isRunnerTurn: game.combat.combatant?.actor?.uuid === actor?.uuid
-    } : null;
+    const s = this.session;
+    syncRunner(s);
+    const records = s.runners ? Object.values(s.runners) : [s];
+    for (const record of records) {
+      const actor = await optionalDocument(record.runner.actorUuid);
+      if (actor) record.runner.profile = this.adapter.profile(actor, record.runner.profile.deckId);
+      record.combat = game.combat ? { round: game.combat.round, turn: game.combat.turn,
+        isRunnerTurn: game.combat.combatant?.actor?.uuid === actor?.uuid } : null;
+    }
+    if (s.runners) Object.assign(s, clone(s.runners[s.runner.userId]));
   }
+  async addRunner(req) {
+    const s = ensureRunners(this.session);
+    assert(Object.keys(s.runners).length < MAX_RUNNERS, "Maximum six player Netrunners per Architecture.");
+    const actor = await this.adapter.resolve(req.actorUuid), user = game.users.get(req.userId);
+    assert(user && !user.isGM, "Choose a player user.");
+    assert(this.adapter.qualifies(actor), "Actor must have a configured NET Role with a positive rank.");
+    assert(actor.testUserPermission(user, "OWNER"), "The player must own this Netrunner Actor.");
+    assert(!s.runners[user.id], "This player already has a Netrunner in the Architecture.");
+    assert(!Object.values(s.runners).some(r => r.runner.actorUuid === actor.uuid), "This Actor is already in the Architecture.");
+    s.runners[user.id] = {
+      runner: { actorUuid: actor.uuid, userId: user.id, physicalTokenUuid: null, profile: this.adapter.profile(actor) },
+      override: false, status: "login", currentNodeId: s.architecture.entryNodeId, previousNodeId: null,
+      discoveredNodeIds: [], failedNodeIds: [], actions: { max: s.actions.max, used: 0 },
+      combat: null, runnerTargetId: null, event: null
+    };
+    s.observers = s.observers.filter(id => id !== user.id);
+    await this.commit(true);
+  }
+
   async projection(user) {
     const state = getVisibleSessionStateForUser(this.session, user);
     if (!state || user.isGM) return state;
@@ -131,7 +162,7 @@ export class SessionService {
     await this.publish(open);
   }
   async end() {
-    this.pendingRoll = null;
+    this.pendingRolls.clear();
     const old = this.session;
     assert(old, "No active NETRUN.");
     this.session = null;
@@ -165,7 +196,7 @@ export class SessionService {
     this.session.previousNodeId = this.session.currentNodeId;
     this.session.currentNodeId = node.id;
     this.session.runnerTargetId = null;
-    for (const ice of Object.values(this.session.iceStates)) if (ice.nodeId !== node.id) ice.target = null;
+    for (const ice of Object.values(this.session.iceStates)) if (ice.nodeId !== node.id && (!ice.target?.runnerId || ice.target.runnerId === this.session.runner.userId)) ice.target = null;
     await this.reveal(node);
     await this.rezNode(node);
   }
@@ -188,6 +219,17 @@ export class SessionService {
     });
   }
   async handle(user, req) {
+    const s = this.session;
+    if (s?.runners && !["sync", "chat"].includes(req?.action)) {
+      assert(canRun(s, user), "Observers cannot change a NETRUN.");
+      const id = user.isGM ? req.runnerId ?? s.gmRunnerIds?.[user.id] ?? Object.keys(s.runners)[0] : user.id;
+      assert(s.runners[id], "Netrunner is no longer in this Architecture.");
+      selectRunner(s, id);
+    }
+    try { return await this.handleSelected(user, req); }
+    finally { syncRunner(this.session); }
+  }
+  async handleSelected(user, req) {
     assert(this.isAuthority(), "No authoritative GM.");
     assert(req && typeof req.action === "string", "Invalid request.");
     if (req.action === "chat") {
@@ -204,9 +246,27 @@ export class SessionService {
     assert(completing || Number.isInteger(req.revision) && req.revision === s.revision, "State changed; please try again with the updated view.");
     const gm = user.isGM;
     assert(canRun(s, user), "Observers cannot change a NETRUN.");
+    if (["addRunner", "selectRunner"].includes(req.action)) {
+      assert(gm, "GM only.");
+      if (req.action === "addRunner") return this.addRunner(req);
+      assert(s.runners?.[req.runnerId], "Choose a Netrunner in this Architecture.");
+      s.gmRunnerIds ??= {};
+      s.gmRunnerIds[user.id] = req.runnerId;
+      await this.socket.state(user, await this.projection(user), false);
+      return;
+    }
     const actor = await optionalDocument(s.runner.actorUuid);
     if (req.action === "end") {
-      await this.end();
+      if (gm || !s.runners) await this.end();
+      else {
+        this.pendingRoll = null;
+        s.status = "login";
+        s.currentNodeId = s.architecture.entryNodeId;
+        s.previousNodeId = null;
+        s.runnerTargetId = null;
+        for (const ice of Object.values(s.iceStates)) if (ice.target?.runnerId === user.id) ice.target = null;
+        await this.commit();
+      }
       return;
     }
     assert(actor, "Netrunner Actor was deleted. The GM can end this NETRUN.");
@@ -239,14 +299,14 @@ export class SessionService {
     if (req.action === "broadcast") {
       assert(gm, "GM only.");
       const previous = [...s.observers];
-      s.observers = setting("allowObservers") && Array.isArray(req.users) ? req.users.filter(id => game.users.has(id) && id !== s.runner.userId) : [];
-      for (const id of previous) if (!s.observers.includes(id) && game.users.get(id)?.active) await this.socket.state(game.users.get(id), null, false);
+      s.observers = setting("allowObservers") && Array.isArray(req.users) ? req.users.filter(id => game.users.has(id) && !(s.runners?.[id] || id === s.runner.userId)) : [];
+      for (const id of previous) if (!s.observers.includes(id) && !s.runners?.[id] && game.users.get(id)?.active) await this.socket.state(game.users.get(id), null, false);
       await this.commit(true);
       return;
     }
     if (req.action === "reset") {
       assert(gm, "GM only.");
-      this.pendingRoll = null;
+      this.pendingRolls.clear();
       s.status = "login";
       s.currentNodeId = s.architecture.entryNodeId;
       s.previousNodeId = null;
@@ -261,6 +321,11 @@ export class SessionService {
       s.runnerTargetId = null;
       s.actions.used = 0;
       s.event = null;
+      if (s.runners) for (const record of Object.values(s.runners)) Object.assign(record, {
+        status: "login", currentNodeId: s.architecture.entryNodeId, previousNodeId: null,
+        discoveredNodeIds: [], failedNodeIds: [], runnerTargetId: null, event: null,
+        actions: { max: record.actions.max, used: 0 }
+      });
       await this.commit(true);
       return;
     }
@@ -299,7 +364,7 @@ export class SessionService {
         targetName: combatTarget?.name, targetKind: combatTarget?.kind
       });
       if (!result && !["rez", "derez"].includes(req.programAction)) return;
-      this.netCombat.record(req.programAction, { kind: "runner", name: actor.name }, combatTarget, result);
+      this.netCombat.record(req.programAction, { kind: "runner", runnerId: s.runner.userId, name: actor.name }, combatTarget, result);
       s.actions.used++;
       await this.commit();
       return;
@@ -395,8 +460,11 @@ export class SessionService {
             } else {
               s.iceStates[a.id] ??= await this.netCombat.create(node, a, false);
               const ice = s.iceStates[a.id];
-              const hidden = !s.discoveredNodeIds.includes(ice.nodeId) || !ice.visible;
-              const result = await this.adapter.encounterRoll(ice, req.stat, null, actor, { recipients: [s.runner.userId, ...s.observers], hidden });
+              const victim = s.runners?.[ice.target?.runnerId] ?? s;
+              const targetActor = await optionalDocument(victim.runner.actorUuid);
+              assert(targetActor, "Target Netrunner Actor was deleted.");
+              const hidden = !victim.discoveredNodeIds.includes(ice.nodeId) || !ice.visible;
+              const result = await this.adapter.encounterRoll(ice, req.stat, null, targetActor, { recipients: [victim.runner.userId, ...s.observers], hidden });
               this.netCombat.record(req.stat, { kind: "ice", id: a.id, name: ice.name }, ["atk", "damage"].includes(req.stat) ? clone(ice.target) : null, result, hidden);
             }
             break;

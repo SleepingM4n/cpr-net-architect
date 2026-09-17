@@ -1,3 +1,4 @@
+import { ensureRunners, selectRunner, syncRunner } from "../scripts/services/runner-state.js";
 // Browser harness exercises the real module applications, never represents a Foundry runtime certification.
 function wrap(nodes) {
   const a = Array.from(nodes);
@@ -262,6 +263,17 @@ if (mode === "loot") {
   } : null;
   TextEditor.enrichHTML = async html => html;
 }
+if (params.has("players")) {
+  ensureRunners(session);
+  for (let i = 1; i < Math.min(6, Number(params.get("players")) || 2); i++) {
+    const id = `player${i}`;
+    users.push({ id, name: `Player ${i + 1}`, isGM: false, active: true });
+    const r = clone(session.runners.runner);
+    r.runner = { ...r.runner, userId: id, actorUuid: `Actor.${id}`, profile: { ...r.runner.profile, name: `Netrunner ${i + 1}` } };
+    r.currentNodeId = i % 2 ? "access" : "password";
+    session.runners[id] = r;
+  }
+}
 function projectedView() {
   const view = getVisibleSessionStateForUser(session, game.user);
   if (mode === "loot") view.architecture.nodes.find(n => n.id === "password").attachments = architecture.nodes.find(n => n.id === "password").attachments;
@@ -289,6 +301,8 @@ const runtime = {
   },
   socket: {
     request: async req => {
+      if (session.runners && req.runnerId) selectRunner(session, req.runnerId);
+      if (req.action === "selectRunner") session.gmRunnerIds = { [game.user.id]: req.runnerId };
       if (req.action === "jackIn") {
         session.status = "active";
         session.discoveredNodeIds = ["access"];
@@ -310,6 +324,7 @@ const runtime = {
       if (req.action === "takeItem") architecture.nodes.find(n => n.id === req.nodeId).attachments.find(a => a.id === req.attachmentId).taken = true;
       if (req.action === "npc-add") session.participants.push({ ...req, kind: game.actors.find(a => a.uuid === req.actorUuid)?.type === "demon" ? "demon" : "netrunner" });
       if (req.action === "npc-move") session.participants.find(p => p.id === req.participantId).nodeId = req.destinationId;
+      syncRunner(session);
       session.revision++;
       runtime.view = projectedView();
       runtime.runApp.render();

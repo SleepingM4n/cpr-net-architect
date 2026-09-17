@@ -16,3 +16,5 @@
 .neta-npc-markers span { padding:3px 5px; background:#102d36; color:#87ede0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; font-size:10px; }
 .neta-login h1 { overflow-wrap:anywhere; }
 .neta-shell .neta-save-error{flex:none;margin:0;padding:12px 24px;background:#341720;color:#ffe3e8;border-bottom:1px solid var(--neta-accent);overflow-wrap:anywhere}
+
+.neta-runner-controls{flex:none;padding:8px 24px;border-bottom:1px solid var(--neta-line);font-size:11px;max-height:120px;overflow:auto}.neta-runner-controls .neta-toolbar{margin-top:5px}

@@ -1,5 +1,7 @@
 # NET Architect
 
+**New in 0.6.0:** up to six player Netrunners in one Architecture, each with independent movement, discovery, Programs and rolls. Use **Add Player Netrunner** and **Switch Netrunner** in the live view. See the [multi-player guide](docs/LOCAL-TEST-0.6.0.md).
+
 **New in 0.5.1:** fixes intermittent architecture saving, verifies stored changes, and preserves edits during slow or failed saves. See the [save-fix testing guide](docs/LOCAL-TEST-0.5.1.md).
 
 **New in 0.5.0:** configurable login names, multiple NPC Netrunner/Demon placements and movement, two-line node names, and a window-focus fix. See the [new controls and testing guide](docs/LOCAL-TEST-0.5.0.md).

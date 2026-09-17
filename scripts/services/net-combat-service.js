@@ -99,7 +99,7 @@ export class NetCombatService {
       });
       if (!result) return true;
       this.record(req.operation === "zapDamage" ? "damage" : req.operation === "zap" ? "atk" : req.operation,
-        { kind: "runner", name: actor.name }, target, result);
+        { kind: "runner", runnerId: s.runner.userId, name: actor.name }, target, result);
       s.actions.used++;
     } else if (["deployIce", "editIce", "moveIce", "iceTarget", "encounterRoll", "iceStatus", "confirmHit", "applyNetDamage"].includes(req.action)) {
       assert(gm, "GM only.");
@@ -140,6 +140,7 @@ export class NetCombatService {
           ice.nodeId = req.destinationId;
           ice.target = null;
           if (s.runnerTargetId === req.iceId) s.runnerTargetId = null;
+          for (const r of Object.values(s.runners ?? {})) if (r.runnerTargetId === req.iceId) r.runnerTargetId = null;
         } else if (req.action === "iceStatus") {
           assert(["rez", "derez", "reveal", "hide", "defeat"].includes(req.operation), "Invalid ICE operation.");
           if (req.operation === "rez") { assert(ice.rez.value > 0, "Restore REZ in Edit Encounter first."); ice.rezzed = true; ice.defeated = false; }
@@ -150,18 +151,22 @@ export class NetCombatService {
           if (!ice.rezzed || !ice.visible || ice.defeated) {
             ice.target = null;
             if (s.runnerTargetId === req.iceId) s.runnerTargetId = null;
+          for (const r of Object.values(s.runners ?? {})) if (r.runnerTargetId === req.iceId) r.runnerTargetId = null;
           }
         } else if (req.action === "iceTarget") {
           assert(ice.nodeId === s.currentNodeId, "Move the ICE to the runner's node before targeting.");
           const p = req.programId ? this.sessions.adapter.deck(actor, s.runner.profile.deckId)?.getInstalledItems("program").find(p => p.id === req.programId) : null;
           assert(!req.programId || p?.system.isRezzed, "Choose a rezzed runner Program.");
-          ice.target = p ? { kind: "program", id: p.id, name: p.name } : { kind: "runner", name: actor.name };
+          ice.target = p ? { kind: "program", runnerId: s.runner.userId, id: p.id, name: p.name } : { kind: "runner", runnerId: s.runner.userId, name: actor.name };
         } else if (req.action === "encounterRoll") {
           const offensive = ["atk", "damage"].includes(req.operation);
           assert(ice.rezzed && !ice.defeated, "ICE is not active.");
-          assert(!offensive || ice.target && ice.nodeId === s.currentNodeId, "Choose a target in the same node first.");
-          const hidden = !ice.visible || !s.discoveredNodeIds.includes(ice.nodeId);
-          const result = await this.sessions.adapter.encounterRoll(ice, req.operation, req.programId, actor, { recipients: [s.runner.userId, ...s.observers], hidden });
+          const victim = s.runners?.[ice.target?.runnerId] ?? s;
+          assert(!offensive || ice.target && victim.status === "active" && ice.nodeId === victim.currentNodeId, "Choose an active target in the same node first.");
+          const targetActor = offensive ? await optionalDocument(victim.runner.actorUuid) : actor;
+          assert(targetActor, "Target Netrunner Actor was deleted.");
+          const hidden = !ice.visible || !victim.discoveredNodeIds.includes(ice.nodeId);
+          const result = await this.sessions.adapter.encounterRoll(ice, req.operation, req.programId, targetActor, { recipients: [victim.runner.userId, ...s.observers], hidden });
           this.record(req.operation, { kind: "ice", id: req.iceId, name: ice.name }, offensive ? clone(ice.target) : null, result, hidden);
         }
       }
@@ -180,6 +185,12 @@ export class NetCombatService {
       ice.rez.value = Math.max(0, ice.rez.value - req.amount);
       if (!ice.rez.value) { ice.rezzed = false; ice.defeated = true; }
     } else {
+      if (target.runnerId) {
+        const record = this.s.runners?.[target.runnerId];
+        if (this.s.runners) assert(record, "Target Netrunner is no longer in this Architecture.");
+        if (record) actor = await optionalDocument(record.runner.actorUuid);
+      }
+      assert(actor, "Target Netrunner Actor was deleted.");
       const doc = target.kind === "runner" ? actor : actor.items.get(target.id);
       assert(doc, "Target Document was deleted.");
       const receipts = doc.getFlag(ID, "netDamageReceipts") ?? [];

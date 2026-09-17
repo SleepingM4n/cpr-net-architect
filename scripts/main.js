@@ -119,7 +119,8 @@ let refreshTimer;
 function refreshRelevant(document) {
   if (!runtime?.ready || !runtime.sessions.isAuthority() || !runtime.sessions.session) return;
   const s = runtime.sessions.session;
-  if (document && document.uuid !== s.runner.actorUuid && document.parent?.uuid !== s.runner.actorUuid) return;
+  const runners = s.runners ? Object.values(s.runners) : [s];
+  if (document && !runners.some(r => document.uuid === r.runner.actorUuid || document.parent?.uuid === r.runner.actorUuid)) return;
   clearTimeout(refreshTimer);
   refreshTimer = setTimeout(() => {
     const service = runtime.sessions;
@@ -136,7 +137,11 @@ Hooks.on("updateCombat", (combat, changes) => {
   const service = runtime.sessions;
   const task = service.queue.then(async () => {
     if (!service.session) return;
-    if (("turn" in changes || "round" in changes) && combat.combatant?.actor?.uuid === service.session.runner.actorUuid) service.session.actions.used = 0;
+    if ("turn" in changes || "round" in changes) {
+      const s = service.session;
+      if (combat.combatant?.actor?.uuid === s.runner.actorUuid) s.actions.used = 0;
+      for (const r of Object.values(s.runners ?? {})) if (combat.combatant?.actor?.uuid === r.runner.actorUuid) r.actions.used = 0;
+    }
     await service.commit();
   });
   service.queue = task.catch(log.error);

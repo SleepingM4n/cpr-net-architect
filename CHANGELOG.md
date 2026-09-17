@@ -1,3 +1,14 @@
+# 0.6.0
+
+- Add up to six player Netrunners to one Architecture, with unique Actors/users and ownership/positive NET Role validation for additional runners.
+- Give each runner independent Jack In/Out, position, discovery, failed attempts, Cyberdeck, action tracking, combat target and pending rolls.
+- Share cracked nodes, bypasses, NPCs, Black ICE encounters and once-per-run Item pickups.
+- Add GM runner selection to the Architecture and NET Combat windows.
+- Show teammates only at discovered locations and keep their inventory private.
+- Bind ICE targets and confirmed damage to the correct character after GM selection changes.
+- Persist all runners through reconnects; migrate legacy encounters; reset/end the group through GM controls.
+- Preserve the verified architecture saving fixes from 0.5.1.
+
 # 0.5.1
 
 - Reacquire current compendium documents before saving, avoiding stale storage references after long editing sessions.
